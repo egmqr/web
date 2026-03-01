@@ -11,8 +11,30 @@
     .landing-page h2 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #fff; }
     .thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 30px; }
     .thumb-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid #333; background: #222; }
-    .main-btn { display: inline-block; background: #4285f4; color: white; text-decoration: none; padding: 16px 32px; border-radius: 30px; font-size: 16px; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4); }
-    .loader { margin-top: 50px; color: #888; font-size: 14px; text-align: center; width: 100%; }
+    
+    /* --- CUSTOM LOADING ANIMATION --- */
+    .loader-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 60px; gap: 15px; width: 100%; }
+    
+    .focus-ring { 
+      width: 44px; 
+      height: 44px; 
+      border: 3px solid rgba(66, 133, 244, 0.15); 
+      border-top: 3px solid #4285f4; 
+      border-radius: 50%; 
+      animation: spin 0.8s cubic-bezier(0.6, 0.2, 0.4, 0.8) infinite; 
+    }
+    
+    .loader-text { 
+      color: #aaa; 
+      font-size: 13px; 
+      letter-spacing: 2px; 
+      text-transform: uppercase;
+      font-weight: 600;
+      animation: pulse-text 1.5s ease-in-out infinite; 
+    }
+    
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes pulse-text { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
     .lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: #000; z-index: 9999; display: none; flex-direction: column; align-items:center; justify-content:center; overflow:hidden; }
     .popout-close { position: absolute; top: max(40px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); } 
@@ -38,7 +60,10 @@
 
   <div class="landing-page">
     <h2>Session <span id="session-title-display"></span></h2>
-    <div id="loader" class="loader">Loading your photos...</div>
+    <div id="loader" class="loader-wrapper">
+      <div class="focus-ring"></div>
+      <div class="loader-text">Fetching Photos</div>
+    </div>
     <div id="thumb-grid" class="thumb-grid"></div>
   </div>
 
@@ -64,11 +89,12 @@
   </div>
 
   <script>
+    // --- UNIVERSAL URL ROUTING ---
     const urlParams = new URLSearchParams(window.location.search);
     const SESSION_NUM = urlParams.get('session');
-    const DYNAMIC_BACKEND = urlParams.get('backend'); // Looks for a backend in the URL
+    const DYNAMIC_BACKEND = urlParams.get('backend'); 
     
-    // If the URL has a backend, use it. Otherwise, fall back to your primary Dashboard.
+    // Falls back to a primary dashboard if no backend is provided in the link
     const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/YOUR_PRIMARY_SCRIPT_ID/exec"; 
 
     if (SESSION_NUM) {
@@ -79,13 +105,14 @@
     var currentCarouselIndex = 0; 
     var popoutWindow = null;      
     var inlineIdx = 0;            
-    var lIsProgrammatic = false;  
+    var lIsProgrammatic = false;
+    var imageLoadTimer = null; 
     
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     window.onload = function() {
       if (!SESSION_NUM) {
-        document.getElementById('loader').innerText = "No session specified in the URL.";
+        document.getElementById('loader').innerHTML = "<div class='loader-text'>No session specified</div>";
         return;
       }
 
@@ -95,11 +122,11 @@
           if (result.status === 'success') {
             setupLandingPage(result.data);
           } else {
-            document.getElementById('loader').innerText = "Error: " + result.message;
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + result.message + "</div>";
           }
         })
         .catch(err => {
-          document.getElementById('loader').innerText = "Failed to load photos. Please try again.";
+          document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Failed to load photos</div>";
           console.error(err);
         });
 
@@ -109,7 +136,7 @@
     function setupLandingPage(photos) {
       document.getElementById('loader').style.display = 'none';
       if (!photos || photos.length === 0) {
-        document.getElementById('thumb-grid').innerHTML = "<div class='loader'>No photos ready yet. Refresh soon!</div>";
+        document.getElementById('thumb-grid').innerHTML = "<div class='loader-wrapper'><div class='loader-text'>No photos ready yet. Check back soon!</div></div>";
         return;
       }
 
@@ -118,15 +145,12 @@
       });
 
       var gridHtml = "";
-      // Loop through photos, inject the index into the click handler, and add a pointer cursor
       photos.forEach(function(p, index) { 
-        gridHtml += "<img src='" + p.previewUrl + "' loading='lazy' onclick='openCarouselAt(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>"; 
+        gridHtml += "<img src='" + p.previewUrl + "' loading='lazy' decoding='async' onclick='openCarouselAt(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>"; 
       });
-      
       document.getElementById('thumb-grid').innerHTML = gridHtml;
     }
 
-    // New helper function to open the clicked photo based on the user's device
     window.openCarouselAt = function(idx) {
       if (isIOS) {
         openPopoutCarousel(idx);
@@ -145,7 +169,7 @@
       var stripHtml = '';
       window.filteredImages.forEach((f, i) => { 
         var src = f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c';
-        stripHtml += '<img id="lt-'+i+'" class="filmstrip-thumb ' + (i === idx ? 'active' : '') + '" src="'+src+'" loading="lazy" onclick="navigateInlineTo('+i+')">'; 
+        stripHtml += '<img id="lt-'+i+'" class="filmstrip-thumb ' + (i === idx ? 'active' : '') + '" src="'+src+'" loading="lazy" decoding="async" onclick="navigateInlineTo('+i+')">'; 
       });
       document.getElementById('l-filmstripWrapper').innerHTML = stripHtml;
       
@@ -161,17 +185,13 @@
       inlineIdx = idx;
       const img = window.filteredImages[idx];
       
-      const url = img.baseUrl.startsWith('data:') ? img.baseUrl : img.baseUrl + '=w1024';
       const pct = window.filteredImages.length > 1 ? (idx / (window.filteredImages.length - 1)) * 100 : 0;
       
       document.getElementById('l-handle').style.left = pct + '%'; 
       var timeB = document.getElementById('l-time');
       timeB.style.left = pct + '%'; timeB.innerText = img.displayTime; 
       document.getElementById('l-count').innerText = `${idx + 1} / ${window.filteredImages.length}`; 
-      
       document.getElementById('l-download-btn').href = img.downloadUrl;
-      
-      const imgEl = document.getElementById('l-img');
       
       document.querySelectorAll('#l-filmstripWrapper .filmstrip-thumb.active').forEach(el => el.classList.remove('active')); 
       const active = document.getElementById('lt-' + idx); 
@@ -183,8 +203,16 @@
         setTimeout(() => { lIsProgrammatic = false; }, 150); 
       }
       
-      imgEl.style.opacity = 0; 
-      setTimeout(() => { imgEl.src = url; imgEl.onload = () => imgEl.style.opacity = 1; }, 20);
+      clearTimeout(imageLoadTimer);
+      const url = img.baseUrl.startsWith('data:') ? img.baseUrl : img.baseUrl + '=w1024';
+      const imgEl = document.getElementById('l-img');
+      
+      imageLoadTimer = setTimeout(() => {
+        if (imgEl.src !== url) {
+          imgEl.style.opacity = 0; 
+          setTimeout(() => { imgEl.src = url; imgEl.onload = () => imgEl.style.opacity = 1; }, 20);
+        }
+      }, 150); 
     }
 
     function navigateInline(dir) { navigateInlineTo(inlineIdx + dir); }
@@ -332,7 +360,7 @@
             const imgs = window.opener.filteredImages;
             document.getElementById('p-total').innerText = imgs.length;
             let stripHtml = '';
-            imgs.forEach((f, i) => { stripHtml += '<img id="pt-'+i+'" class="filmstrip-thumb ' + (i === ${idx} ? 'active' : '') + '" src="'+(f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c')+'" loading="lazy" onclick="window.opener.navigatePopoutTo('+i+')">'; });
+            imgs.forEach((f, i) => { stripHtml += '<img id="pt-'+i+'" class="filmstrip-thumb ' + (i === ${idx} ? 'active' : '') + '" src="'+(f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c')+'" loading="lazy" decoding="async" onclick="window.opener.navigatePopoutTo('+i+')">'; });
             const wrapper = document.getElementById('p-filmstripWrapper');
             wrapper.innerHTML = stripHtml;
             setTimeout(() => { const itl = document.getElementById('pt-' + ${idx}); if (itl) itl.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' }); }, 50);
@@ -341,7 +369,7 @@
               const fresh = window.opener.filteredImages;
               document.getElementById('p-total').innerText = fresh.length;
               let fHtml = '';
-              fresh.forEach((f, i) => { fHtml += '<img id="pt-'+i+'" class="filmstrip-thumb ' + (i === newIdx ? 'active' : '') + '" src="'+(f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c')+'" loading="lazy" onclick="window.opener.navigatePopoutTo('+i+')">'; });
+              fresh.forEach((f, i) => { fHtml += '<img id="pt-'+i+'" class="filmstrip-thumb ' + (i === newIdx ? 'active' : '') + '" src="'+(f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c')+'" loading="lazy" decoding="async" onclick="window.opener.navigatePopoutTo('+i+')">'; });
               wrapper.innerHTML = fHtml; wrapper.style.scrollBehavior = 'auto'; 
               const nA = document.getElementById('pt-' + newIdx); if(nA) nA.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
               const pt = fresh.length > 1 ? (newIdx / (fresh.length - 1)) * 100 : 0;
@@ -363,7 +391,7 @@
             window.addEventListener('touchmove', e => { if (isD) { e.preventDefault(); hS(e.touches[0].clientX); } }, {passive: false}); 
             window.addEventListener('touchend', () => { if (isD) { isD = false; timeB.style.opacity = 0; window.opener.endScrubPopout(true); } }); 
             
-            let pIsProgrammatic = false, popoutImgTimer = null, popoutLastFetch = 0;
+            let pIsProgrammatic = false, popoutImgTimer = null;
             setTimeout(() => { wrapper.addEventListener('scroll', () => { if (isD || pIsProgrammatic) return; window.opener.filmstripScrolledPopout(Math.max(0, Math.min(imgs.length - 1, Math.round(wrapper.scrollLeft / 53)))); }); }, 300);
 
             window.updateUI = (url, count, pct, time, scrub, i, upScroll) => { 
@@ -375,11 +403,25 @@
               btn.style.display = 'block'; btn.innerText = 'Load HD Photo'; btn.disabled = false;
               document.getElementById('pre-hd-hint').style.display = 'block';
               document.getElementById('hd-hint').style.display = 'none';
+              
               document.querySelectorAll('.filmstrip-thumb.active').forEach(el => el.classList.remove('active')); 
               const active = document.getElementById('pt-' + i); 
-              if (active) { active.classList.add('active'); if (upScroll) { pIsProgrammatic = true; wrapper.style.scrollBehavior = 'auto'; active.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' }); setTimeout(() => { pIsProgrammatic = false; }, 150); } }
-              if (scrub) { const now = Date.now(); if (now - popoutLastFetch > 120) { imgEl.src = url; popoutLastFetch = now; } else { clearTimeout(popoutImgTimer); popoutImgTimer = setTimeout(() => { imgEl.src = url; popoutLastFetch = Date.now(); }, 120); }
-              } else { imgEl.style.opacity = 0; setTimeout(() => { imgEl.src = url; imgEl.onload = () => imgEl.style.opacity = 1; }, 20); } 
+              if (active) { 
+                active.classList.add('active'); 
+                if (upScroll) { 
+                  pIsProgrammatic = true; wrapper.style.scrollBehavior = 'auto'; 
+                  active.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' }); 
+                  setTimeout(() => { pIsProgrammatic = false; }, 150); 
+                } 
+              }
+              
+              if (scrub) { 
+                 clearTimeout(popoutImgTimer);
+                 popoutImgTimer = setTimeout(() => { imgEl.src = url; }, 150);
+              } else { 
+                 imgEl.style.opacity = 0; 
+                 setTimeout(() => { imgEl.src = url; imgEl.onload = () => imgEl.style.opacity = 1; }, 20); 
+              } 
             }; 
           <\/script>
         </body></html>
