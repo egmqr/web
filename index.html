@@ -38,9 +38,6 @@
 
   <div class="landing-page">
     <h2>Session <span id="session-title-display"></span></h2>
-    
-    <a id="view-btn" class="main-btn" style="display: none; margin-bottom: 25px;">View / Download Photos</a>
-    
     <div id="loader" class="loader">Loading your photos...</div>
     <div id="thumb-grid" class="thumb-grid"></div>
   </div>
@@ -121,18 +118,22 @@
       });
 
       var gridHtml = "";
-      photos.forEach(function(p) { gridHtml += "<img src='" + p.previewUrl + "' loading='lazy'>"; });
-      document.getElementById('thumb-grid').innerHTML = gridHtml;
-
-      var btn = document.getElementById('view-btn');
-      btn.style.display = "inline-block";
+      // Loop through photos, inject the index into the click handler, and add a pointer cursor
+      photos.forEach(function(p, index) { 
+        gridHtml += "<img src='" + p.previewUrl + "' loading='lazy' onclick='openCarouselAt(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>"; 
+      });
       
-      if (isIOS) {
-        btn.onclick = function() { openPopoutCarousel(0); };
-      } else {
-        btn.onclick = function() { openInlineCarousel(0); };
-      }
+      document.getElementById('thumb-grid').innerHTML = gridHtml;
     }
+
+    // New helper function to open the clicked photo based on the user's device
+    window.openCarouselAt = function(idx) {
+      if (isIOS) {
+        openPopoutCarousel(idx);
+      } else {
+        openInlineCarousel(idx);
+      }
+    };
 
     // ==========================================
     // ANDROID / DESKTOP INLINE SCRUBBER FUNCTIONS
