@@ -67,9 +67,10 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const SESSION_NUM = urlParams.get('session');
+    const DYNAMIC_BACKEND = urlParams.get('backend'); // Looks for a backend in the URL
     
-    // !!! PASTE YOUR RAW GOOGLE APPS SCRIPT WEB APP URL HERE !!!
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz3oS_0zsNtgfZfcxxEH2pH9dWTXX0a2iwN-JhybRpU_1QkKbknFrZ0taHgblCqBxHryA/exec"; 
+    // If the URL has a backend, use it. Otherwise, fall back to your primary Dashboard.
+    const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/YOUR_PRIMARY_SCRIPT_ID/exec"; 
 
     if (SESSION_NUM) {
       document.getElementById('session-title-display').innerText = SESSION_NUM.replace('s', '');
