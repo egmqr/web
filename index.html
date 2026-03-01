@@ -1,38 +1,386 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Client Gallery</title>
   <style>
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #111; color: white; font-family: -apple-system, sans-serif; }
     
-    /* The magic trick: push the iframe up by 40px to hide the Google banner */
-    iframe {
-      position: absolute;
-      top: -40px; 
-      left: 0;
-      width: 100%;
-      height: calc(100% + 40px); /* Extend height so the bottom isn't cut off */
-      border: none;
-    }
+    .landing-page { padding: 20px; text-align: center; max-width: 800px; margin: 0 auto; }
+    .landing-page h2 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #fff; }
+    .thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 30px; }
+    .thumb-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid #333; background: #222; }
+    .main-btn { display: inline-block; background: #4285f4; color: white; text-decoration: none; padding: 16px 32px; border-radius: 30px; font-size: 16px; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4); }
+    .loader { margin-top: 50px; color: #888; font-size: 14px; text-align: center; width: 100%; }
+
+    .lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: #000; z-index: 9999; display: none; flex-direction: column; align-items:center; justify-content:center; overflow:hidden; }
+    .popout-close { position: absolute; top: max(40px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); } 
+    .download-action { position: absolute; top: max(40px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); height: 44px; padding: 0 20px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 99999; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); }
+    
+    .image-stage { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; } 
+    img.main { width: 85%; height: 85%; transition: all 0.3s ease; opacity:0; object-fit: contain; pointer-events: auto; user-select: none; -webkit-user-drag: none; } 
+    
+    .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 10; color: #fff; cursor: pointer; } 
+    .left { left: max(10px, env(safe-area-inset-left)); } .right { right: max(10px, env(safe-area-inset-right)); } 
+    .modal-bottom-controls { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 20; padding-top: 20px; padding-bottom: max(20px, env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%); } 
+    .filmstrip-wrapper { position: relative; width: 100%; overflow-x: auto; white-space: nowrap; -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent); padding: 10px calc(50% - 26px); scroll-snap-type: x mandatory; box-sizing: border-box; } 
+    .filmstrip-wrapper::-webkit-scrollbar { display: none; } 
+    .filmstrip-thumb { width: 45px; height: 45px; object-fit: cover; display: inline-block; margin: 0 4px; border-radius: 6px; opacity: 0.4; border: 2px solid transparent; transition: all 0.2s; scroll-snap-align: center; background-color: #222; cursor: pointer; } 
+    .filmstrip-thumb.active { opacity: 1; transform: scale(1.2); border-color: white; box-shadow: 0 0 12px rgba(255,255,255,0.9); z-index: 2; position: relative; } 
+    .scrubber-track { width: 90%; max-width: 500px; height: 50px; display: flex; align-items: center; position: relative; touch-action: none; } 
+    .track-line { width: 100%; height: 4px; background: #444; border-radius: 2px; } 
+    .scrubber-handle { width: 24px; height: 24px; background: #fff; border-radius: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 2px 8px rgba(0,0,0,0.6); pointer-events: none; } 
+    .time-bubble { position: absolute; top: -30px; transform: translateX(-50%); background: #333; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   </style>
 </head>
 <body>
 
-  <iframe id="app-frame" src=""></iframe>
+  <div class="landing-page">
+    <h2>Session <span id="session-title-display"></span></h2>
+    <div id="loader" class="loader">Loading your photos...</div>
+    <div id="thumb-grid" class="thumb-grid"></div>
+    <a id="view-btn" class="main-btn" style="display: none;">View / Download Photos</a>
+  </div>
+
+  <div id="lightbox" class="lightbox">
+    <a id="l-download-btn" class="download-action" href="" download>⬇ Download</a>
+    <div class="popout-close" onclick="closeLightbox()">✕</div>
+    
+    <div class="image-stage" id="l-stage">
+      <div class="nav-btn left" onclick="navigateInline(-1)">&#10094;</div>
+      <img id="l-img" class="main" src="" onload="this.style.opacity=1">
+      <div class="nav-btn right" onclick="navigateInline(1)">&#10095;</div>
+    </div>
+    
+    <div class="modal-bottom-controls">
+      <div id="l-count" style="font-size:12px; color:#aaa; font-weight:bold;"></div>
+      <div class="filmstrip-wrapper" id="l-filmstripWrapper"></div>
+      <div class="scrubber-track" id="l-track">
+        <div class="time-bubble" id="l-time"></div>
+        <div class="track-line"></div>
+        <div class="scrubber-handle" id="l-handle"></div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    // 1. Get the session parameter from this wrapper's URL (e.g., ?session=s001)
     const urlParams = new URLSearchParams(window.location.search);
-    const sessionNum = urlParams.get('session');
+    const SESSION_NUM = urlParams.get('session');
+    
+    // !!! PASTE YOUR RAW GOOGLE APPS SCRIPT WEB APP URL HERE !!!
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz3oS_0zsNtgfZfcxxEH2pH9dWTXX0a2iwN-JhybRpU_1QkKbknFrZ0taHgblCqBxHryA/exec"; 
 
-    // 2. PASTE YOUR RAW GOOGLE APPS SCRIPT WEB APP URL HERE:
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3oS_0zsNtgfZfcxxEH2pH9dWTXX0a2iwN-JhybRpU_1QkKbknFrZ0taHgblCqBxHryA/exec";
+    if (SESSION_NUM) {
+      document.getElementById('session-title-display').innerText = SESSION_NUM.replace('s', '');
+    }
+    
+    window.filteredImages = [];
+    var currentCarouselIndex = 0; 
+    var popoutWindow = null;      
+    var inlineIdx = 0;            
+    var lIsProgrammatic = false;  
+    
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    // 3. Build the iframe source and load it
-    const frameSrc = sessionNum ? SCRIPT_URL + "?session=" + sessionNum : SCRIPT_URL;
-    document.getElementById('app-frame').src = frameSrc;
+    window.onload = function() {
+      if (!SESSION_NUM) {
+        document.getElementById('loader').innerText = "No session specified in the URL.";
+        return;
+      }
+
+      fetch(`${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}`)
+        .then(response => response.json())
+        .then(result => {
+          if (result.status === 'success') {
+            setupLandingPage(result.data);
+          } else {
+            document.getElementById('loader').innerText = "Error: " + result.message;
+          }
+        })
+        .catch(err => {
+          document.getElementById('loader').innerText = "Failed to load photos. Please try again.";
+          console.error(err);
+        });
+
+      setupInlineTouch(); 
+    };
+
+    function setupLandingPage(photos) {
+      document.getElementById('loader').style.display = 'none';
+      if (!photos || photos.length === 0) {
+        document.getElementById('thumb-grid').innerHTML = "<div class='loader'>No photos ready yet. Refresh soon!</div>";
+        return;
+      }
+
+      window.filteredImages = photos.map(function(p) {
+        return { baseUrl: p.baseUrl, displayTime: p.displayTime, downloadUrl: p.downloadUrl };
+      });
+
+      var gridHtml = "";
+      photos.forEach(function(p) { gridHtml += "<img src='" + p.previewUrl + "' loading='lazy'>"; });
+      document.getElementById('thumb-grid').innerHTML = gridHtml;
+
+      var btn = document.getElementById('view-btn');
+      btn.style.display = "inline-block";
+      
+      if (isIOS) {
+        btn.onclick = function() { openPopoutCarousel(0); };
+      } else {
+        btn.onclick = function() { openInlineCarousel(0); };
+      }
+    }
+
+    // ==========================================
+    // ANDROID / DESKTOP INLINE SCRUBBER FUNCTIONS
+    // ==========================================
+    function openInlineCarousel(idx) {
+      inlineIdx = idx;
+      document.getElementById('lightbox').style.display = 'flex';
+      
+      var stripHtml = '';
+      window.filteredImages.forEach((f, i) => { 
+        var src = f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c';
+        stripHtml += '<img id="lt-'+i+'" class="filmstrip-thumb ' + (i === idx ? 'active' : '') + '" src="'+src+'" loading="lazy" onclick="navigateInlineTo('+i+')">'; 
+      });
+      document.getElementById('l-filmstripWrapper').innerHTML = stripHtml;
+      
+      navigateInlineTo(idx);
+      setTimeout(() => { 
+        var itl = document.getElementById('lt-' + idx); 
+        if (itl) itl.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' }); 
+      }, 50);
+    }
+
+    function navigateInlineTo(idx) {
+      if (idx < 0 || idx >= window.filteredImages.length) return;
+      inlineIdx = idx;
+      const img = window.filteredImages[idx];
+      
+      const url = img.baseUrl.startsWith('data:') ? img.baseUrl : img.baseUrl + '=w1024';
+      const pct = window.filteredImages.length > 1 ? (idx / (window.filteredImages.length - 1)) * 100 : 0;
+      
+      document.getElementById('l-handle').style.left = pct + '%'; 
+      var timeB = document.getElementById('l-time');
+      timeB.style.left = pct + '%'; timeB.innerText = img.displayTime; 
+      document.getElementById('l-count').innerText = `${idx + 1} / ${window.filteredImages.length}`; 
+      
+      document.getElementById('l-download-btn').href = img.downloadUrl;
+      
+      const imgEl = document.getElementById('l-img');
+      
+      document.querySelectorAll('#l-filmstripWrapper .filmstrip-thumb.active').forEach(el => el.classList.remove('active')); 
+      const active = document.getElementById('lt-' + idx); 
+      if (active) { 
+        active.classList.add('active'); 
+        lIsProgrammatic = true; 
+        document.getElementById('l-filmstripWrapper').style.scrollBehavior = 'auto'; 
+        active.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' }); 
+        setTimeout(() => { lIsProgrammatic = false; }, 150); 
+      }
+      
+      imgEl.style.opacity = 0; 
+      setTimeout(() => { imgEl.src = url; imgEl.onload = () => imgEl.style.opacity = 1; }, 20);
+    }
+
+    function navigateInline(dir) { navigateInlineTo(inlineIdx + dir); }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').style.display = 'none';
+      document.getElementById('l-img').src = '';
+    }
+
+    function setupInlineTouch() {
+      let lStartX = 0, lEndX = 0;
+      const stage = document.getElementById('l-stage');
+      stage.addEventListener('touchstart', e => { lStartX = e.changedTouches[0].screenX; }, {passive: true});
+      stage.addEventListener('touchend', e => { 
+          lEndX = e.changedTouches[0].screenX; 
+          if (lStartX - lEndX > 50) navigateInline(1); 
+          if (lEndX - lStartX > 50) navigateInline(-1); 
+      }, {passive: true});
+      
+      window.addEventListener('keydown', (e) => { 
+          if (document.getElementById('lightbox').style.display !== 'none') {
+              if (e.key === 'ArrowRight') navigateInline(1); 
+              else if (e.key === 'ArrowLeft') navigateInline(-1); 
+              else if (e.key === 'Escape') closeLightbox(); 
+          }
+      });
+
+      const track = document.getElementById('l-track'), timeB = document.getElementById('l-time'); 
+      let isD = false, rAF = null;
+      const calcScrub = (cX) => { 
+          const rect = track.getBoundingClientRect(); 
+          var pctFloat = Math.max(0, Math.min(cX - rect.left, rect.width)) / rect.width; 
+          var targetIdx = Math.round(pctFloat * (window.filteredImages.length - 1));
+          if (targetIdx !== inlineIdx) navigateInlineTo(targetIdx);
+      }; 
+      const hS = (cX) => { if(rAF) cancelAnimationFrame(rAF); rAF = requestAnimationFrame(() => calcScrub(cX)); };
+      track.addEventListener('touchstart', e => { isD = true; timeB.style.opacity = 1; hS(e.touches[0].clientX); }, {passive: false}); 
+      window.addEventListener('touchmove', e => { if (isD && document.getElementById('lightbox').style.display !== 'none') { e.preventDefault(); hS(e.touches[0].clientX); } }, {passive: false}); 
+      window.addEventListener('touchend', () => { if (isD) { isD = false; timeB.style.opacity = 0; } }); 
+      
+      var wrapper = document.getElementById('l-filmstripWrapper');
+      setTimeout(() => { 
+          wrapper.addEventListener('scroll', () => { 
+              if (isD || lIsProgrammatic || document.getElementById('lightbox').style.display === 'none') return; 
+              var idx = Math.max(0, Math.min(window.filteredImages.length - 1, Math.round(wrapper.scrollLeft / 53)));
+              if (idx !== inlineIdx) navigateInlineTo(idx);
+          }); 
+      }, 300);
+    }
+
+    // ==========================================
+    // iOS POPOUT OPENER FUNCTIONS
+    // ==========================================
+    window.navigatePopoutTo = function(idx) {
+      if (idx < 0 || idx >= window.filteredImages.length) return;
+      currentCarouselIndex = idx;
+      if (popoutWindow && !popoutWindow.closed) {
+        const img = window.filteredImages[idx];
+        const url = img.baseUrl + '=w400';
+        const pct = window.filteredImages.length > 1 ? (idx / (window.filteredImages.length - 1)) * 100 : 0;
+        const count = `${idx + 1} / ${window.filteredImages.length}`;
+        popoutWindow.updateUI(url, count, pct, img.displayTime, false, idx, true);
+      }
+    };
+
+    window.navigatePopout = function(dir) { window.navigatePopoutTo(currentCarouselIndex + dir); };
+
+    window.loadHdPopout = function() {
+      if (popoutWindow && !popoutWindow.closed) {
+        const img = window.filteredImages[currentCarouselIndex];
+        const hdUrl = img.baseUrl + '=s0'; 
+        const imgEl = popoutWindow.document.getElementById('p-img');
+        imgEl.src = hdUrl;
+        imgEl.style.width = '100%'; imgEl.style.height = '100%';
+        popoutWindow.document.getElementById('p-center-btn').style.display = 'none';
+        popoutWindow.document.getElementById('pre-hd-hint').style.display = 'none';
+        popoutWindow.document.getElementById('hd-hint').style.display = 'block';
+      }
+    };
+
+    window.scrubPopout = function(pctFloat) {
+      const targetIdx = Math.round(pctFloat * (window.filteredImages.length - 1));
+      if (targetIdx !== currentCarouselIndex) window.navigatePopoutTo(targetIdx);
+    };
+
+    window.endScrubPopout = function() {};
+    
+    window.filmstripScrolledPopout = function(idx) {
+      if (idx !== currentCarouselIndex) window.navigatePopoutTo(idx);
+    };
+
+    function openPopoutCarousel(idx) {
+      currentCarouselIndex = idx; 
+      popoutWindow = window.open("", "_blank");
+      if (!popoutWindow) return;
+      const img = window.filteredImages[idx];
+      const previewUrl = img.baseUrl.startsWith('data:') ? img.baseUrl : img.baseUrl + '=w400';
+      const pct = window.filteredImages.length > 1 ? (idx / (window.filteredImages.length - 1)) * 100 : 0;
+      
+      popoutWindow.document.write(`
+        <html><head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+          <style>
+            body { margin:0; background:#000; height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; font-family:sans-serif; overflow:hidden; } 
+            .popout-close { position: absolute; top: max(40px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); } 
+            .image-stage { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; } 
+            img.main { width: 50%; height: 50%; transition: all 0.3s ease; opacity:0; object-fit: contain; pointer-events: auto; user-select: none; -webkit-user-drag: none; } 
+            
+            .hint-banner { position: absolute; top: max(100px, calc(env(safe-area-inset-top) + 60px)); font-size: 14px; text-align: center; font-weight: bold; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 30px; z-index: 100; backdrop-filter: blur(5px); }
+            #pre-hd-hint { color: #ff3b30; border: 1px solid rgba(255,59,48,0.3); display: block; }
+            #hd-hint { color: #4cd964; border: 1px solid rgba(76,217,100,0.3); display: none; } 
+            
+            @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 4px 12px rgba(213,0,0,0.4); } 50% { transform: scale(1.05); box-shadow: 0 4px 20px rgba(213,0,0,0.7); } 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(213,0,0,0.4); } }
+            .red-btn { position: absolute; top: max(160px, calc(env(safe-area-inset-top) + 120px)); background: #d50000; color: white; padding: 14px 28px; border-radius: 30px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; z-index: 100; display: block; animation: pulse 1.5s infinite ease-in-out; }
+            
+            .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 10; color: #fff; } 
+            .left { left: max(10px, env(safe-area-inset-left)); } .right { right: max(10px, env(safe-area-inset-right)); } 
+            .modal-bottom-controls { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 20; padding-top: 20px; padding-bottom: max(20px, env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%); } 
+            .filmstrip-wrapper { position: relative; width: 100%; overflow-x: auto; white-space: nowrap; -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent); padding: 10px calc(50% - 26px); scroll-snap-type: x mandatory; box-sizing: border-box; } 
+            .filmstrip-wrapper::-webkit-scrollbar { display: none; } 
+            .filmstrip-thumb { width: 45px; height: 45px; object-fit: cover; display: inline-block; margin: 0 4px; border-radius: 6px; opacity: 0.4; border: 2px solid transparent; transition: all 0.2s; scroll-snap-align: center; background-color: #222; } 
+            .filmstrip-thumb.active { opacity: 1; transform: scale(1.2); border-color: white; box-shadow: 0 0 12px rgba(255,255,255,0.9); z-index: 2; position: relative; } 
+            .scrubber-track { width: 90%; max-width: 500px; height: 50px; display: flex; align-items: center; position: relative; touch-action: none; } 
+            .track-line { width: 100%; height: 4px; background: #444; border-radius: 2px; } 
+            .scrubber-handle { width: 24px; height: 24px; background: #fff; border-radius: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 2px 8px rgba(0,0,0,0.6); pointer-events: none; } 
+            .time-bubble { position: absolute; top: -30px; transform: translateX(-50%); background: #333; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; opacity: 0; pointer-events: none; }
+          </style>
+        </head>
+        <body>
+          <div class="popout-close" onclick="window.close()">✕</div>
+          <div class="image-stage">
+            <div class="nav-btn left" onclick="window.opener.navigatePopout(-1)">&#10094;</div>
+            <div id="pre-hd-hint" class="hint-banner">Click "Load HD Photo" for the best quality</div>
+            <div id="hd-hint" class="hint-banner">Tap and hold photo, then "Save Image in Photos"</div>
+            <button id="p-center-btn" class="red-btn" onclick="window.opener.loadHdPopout()">Load HD Photo</button>
+            <img id="p-img" class="main" src="${previewUrl}" onload="this.style.opacity=1">
+            <div class="nav-btn right" onclick="window.opener.navigatePopout(1)">&#10095;</div>
+          </div>
+          <div class="modal-bottom-controls">
+            <div id="p-count" style="font-size:12px; color:#aaa; font-weight:bold;">${idx + 1} / <span id="p-total"></span></div>
+            <div class="filmstrip-wrapper" id="p-filmstripWrapper"></div>
+            <div class="scrubber-track" id="p-track"><div class="time-bubble" id="p-time" style="left: ${pct}%">${img.displayTime}</div><div class="track-line"></div><div class="scrubber-handle" id="p-handle" style="left: ${pct}%"></div></div>
+          </div>
+          <script>
+            const imgs = window.opener.filteredImages;
+            document.getElementById('p-total').innerText = imgs.length;
+            let stripHtml = '';
+            imgs.forEach((f, i) => { stripHtml += '<img id="pt-'+i+'" class="filmstrip-thumb ' + (i === ${idx} ? 'active' : '') + '" src="'+(f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c')+'" loading="lazy" onclick="window.opener.navigatePopoutTo('+i+')">'; });
+            const wrapper = document.getElementById('p-filmstripWrapper');
+            wrapper.innerHTML = stripHtml;
+            setTimeout(() => { const itl = document.getElementById('pt-' + ${idx}); if (itl) itl.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' }); }, 50);
+
+            window.rebuildFilmstrip = (newIdx) => {
+              const fresh = window.opener.filteredImages;
+              document.getElementById('p-total').innerText = fresh.length;
+              let fHtml = '';
+              fresh.forEach((f, i) => { fHtml += '<img id="pt-'+i+'" class="filmstrip-thumb ' + (i === newIdx ? 'active' : '') + '" src="'+(f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c')+'" loading="lazy" onclick="window.opener.navigatePopoutTo('+i+')">'; });
+              wrapper.innerHTML = fHtml; wrapper.style.scrollBehavior = 'auto'; 
+              const nA = document.getElementById('pt-' + newIdx); if(nA) nA.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+              const pt = fresh.length > 1 ? (newIdx / (fresh.length - 1)) * 100 : 0;
+              document.getElementById('p-handle').style.left = pt + '%'; document.getElementById('p-time').style.left = pt + '%'; 
+              document.getElementById('p-time').innerText = fresh[newIdx] ? fresh[newIdx].displayTime : '';
+            };
+
+            let pStartX = 0, pEndX = 0;
+            const stage = document.querySelector('.image-stage');
+            stage.addEventListener('touchstart', e => { pStartX = e.changedTouches[0].screenX; }, {passive: true});
+            stage.addEventListener('touchend', e => { pEndX = e.changedTouches[0].screenX; if (pStartX - pEndX > 50) window.opener.navigatePopout(1); if (pEndX - pStartX > 50) window.opener.navigatePopout(-1); }, {passive: true});
+            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') window.opener.navigatePopout(1); else if (e.key === 'ArrowLeft') window.opener.navigatePopout(-1); else if (e.key === 'Escape') window.close(); });
+
+            const track = document.getElementById('p-track'), timeB = document.getElementById('p-time'); 
+            let isD = false, rAF = null;
+            const calcScrub = (cX) => { const rect = track.getBoundingClientRect(); window.opener.scrubPopout(Math.max(0, Math.min(cX - rect.left, rect.width)) / rect.width); }; 
+            const hS = (cX) => { if(rAF) cancelAnimationFrame(rAF); rAF = requestAnimationFrame(() => calcScrub(cX)); };
+            track.addEventListener('touchstart', e => { isD = true; timeB.style.opacity = 1; hS(e.touches[0].clientX); }, {passive: false}); 
+            window.addEventListener('touchmove', e => { if (isD) { e.preventDefault(); hS(e.touches[0].clientX); } }, {passive: false}); 
+            window.addEventListener('touchend', () => { if (isD) { isD = false; timeB.style.opacity = 0; window.opener.endScrubPopout(true); } }); 
+            
+            let pIsProgrammatic = false, popoutImgTimer = null, popoutLastFetch = 0;
+            setTimeout(() => { wrapper.addEventListener('scroll', () => { if (isD || pIsProgrammatic) return; window.opener.filmstripScrolledPopout(Math.max(0, Math.min(imgs.length - 1, Math.round(wrapper.scrollLeft / 53)))); }); }, 300);
+
+            window.updateUI = (url, count, pct, time, scrub, i, upScroll) => { 
+              document.getElementById('p-handle').style.left = pct + '%'; timeB.style.left = pct + '%'; timeB.innerText = time; 
+              document.getElementById('p-count').innerText = count; 
+              const imgEl = document.getElementById('p-img');
+              const btn = document.getElementById('p-center-btn');
+              imgEl.style.width = '50%'; imgEl.style.height = '50%'; 
+              btn.style.display = 'block'; btn.innerText = 'Load HD Photo'; btn.disabled = false;
+              document.getElementById('pre-hd-hint').style.display = 'block';
+              document.getElementById('hd-hint').style.display = 'none';
+              document.querySelectorAll('.filmstrip-thumb.active').forEach(el => el.classList.remove('active')); 
+              const active = document.getElementById('pt-' + i); 
+              if (active) { active.classList.add('active'); if (upScroll) { pIsProgrammatic = true; wrapper.style.scrollBehavior = 'auto'; active.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' }); setTimeout(() => { pIsProgrammatic = false; }, 150); } }
+              if (scrub) { const now = Date.now(); if (now - popoutLastFetch > 120) { imgEl.src = url; popoutLastFetch = now; } else { clearTimeout(popoutImgTimer); popoutImgTimer = setTimeout(() => { imgEl.src = url; popoutLastFetch = Date.now(); }, 120); }
+              } else { imgEl.style.opacity = 0; setTimeout(() => { imgEl.src = url; imgEl.onload = () => imgEl.style.opacity = 1; }, 20); } 
+            }; 
+          <\/script>
+        </body></html>
+      `);
+    }
   </script>
-
 </body>
 </html>
