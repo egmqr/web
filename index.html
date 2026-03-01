@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Client Gallery</title>
+  <style>
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+    
+    /* The magic trick: push the iframe up by 40px to hide the Google banner */
+    iframe {
+      position: absolute;
+      top: -40px; 
+      left: 0;
+      width: 100%;
+      height: calc(100% + 40px); /* Extend height so the bottom isn't cut off */
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+  <iframe id="app-frame" src=""></iframe>
+
+  <script>
+    // 1. Get the session parameter from this wrapper's URL (e.g., ?session=s001)
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionNum = urlParams.get('session');
+
+    // 2. PASTE YOUR RAW GOOGLE APPS SCRIPT WEB APP URL HERE:
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3oS_0zsNtgfZfcxxEH2pH9dWTXX0a2iwN-JhybRpU_1QkKbknFrZ0taHgblCqBxHryA/exec";
+
+    // 3. Build the iframe source and load it
+    const frameSrc = sessionNum ? SCRIPT_URL + "?session=" + sessionNum : SCRIPT_URL;
+    document.getElementById('app-frame').src = frameSrc;
+  </script>
+
+</body>
+</html>
