@@ -4,11 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Client Gallery</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #111; color: white; font-family: -apple-system, sans-serif; }
     
     .landing-page { padding: 20px; text-align: center; max-width: 800px; margin: 0 auto; }
-    .landing-page h2 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #fff; }
+    
+    .header-container { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 25px; }
+    .header-container h2 { font-size: 24px; font-weight: 600; margin: 0; color: #fff; }
+    .share-btn { background: #2a2a2a; color: white; border: 1px solid #444; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+    .share-btn:active { background: #444; }
+    
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .modal-box { background: #222; border-radius: 20px; padding: 25px; width: 85%; max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 12px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .modal-box h3 { margin: 0 0 5px 0; font-size: 18px; }
+    .qr-container { background: white; padding: 10px; border-radius: 12px; margin-bottom: 5px; }
+    .action-btn { background: #4285f4; color: white; width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
+    .action-btn:active { opacity: 0.8; transform: scale(0.98); }
+    .close-btn { background: transparent; color: #aaa; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #555; font-weight: bold; cursor: pointer; margin-top: 5px; }
+
     .thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 30px; }
     .thumb-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid #333; background: #222; }
     
@@ -21,11 +35,9 @@
 
     .lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: #000; z-index: 9999; display: none; flex-direction: column; align-items:center; justify-content:center; overflow:hidden; }
     .popout-close { position: absolute; top: max(40px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); } 
-    .download-action { position: absolute; top: max(40px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); height: 44px; padding: 0 20px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 99999; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); }
+    .download-action { position: absolute; top: max(40px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); height: 44px; padding: 0 20px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 99999; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; }
     
     .image-stage { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; } 
-    
-    /* ADDED: -webkit-touch-callout: default to guarantee iOS native saving works perfectly */
     img.main { width: 85%; height: 85%; transition: all 0.3s ease; opacity:0; object-fit: contain; pointer-events: auto; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: default; } 
     
     .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 10; color: #fff; cursor: pointer; } 
@@ -44,12 +56,31 @@
 <body>
 
   <div class="landing-page">
-    <h2>Session <span id="session-title-display"></span></h2>
+    <div class="header-container">
+      <h2>Your gallery</h2>
+      <button class="share-btn" onclick="openShareModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+        Share
+      </button>
+    </div>
+    
     <div id="loader" class="loader-wrapper">
       <div class="focus-ring"></div>
       <div class="loader-text">Fetching Photos</div>
     </div>
     <div id="thumb-grid" class="thumb-grid"></div>
+  </div>
+
+  <div id="shareModal" class="modal-overlay" onclick="closeShareModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <h3>Share this Gallery</h3>
+      <div class="qr-container">
+        <div id="share-qr-code"></div>
+      </div>
+      <button class="action-btn" id="copy-btn" onclick="copyLink()">📋 Copy Link</button>
+      <button class="action-btn" style="background: #0f9d58;" onclick="downloadQR()">⬇️ Download QR Code</button>
+      <button class="close-btn" onclick="closeShareModal()">Close</button>
+    </div>
   </div>
 
   <div id="lightbox" class="lightbox">
@@ -78,21 +109,38 @@
     const SESSION_NUM = urlParams.get('session');
     const DYNAMIC_BACKEND = urlParams.get('backend'); 
     const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/YOUR_PRIMARY_SCRIPT_ID/exec"; 
-
-    if (SESSION_NUM) {
-      document.getElementById('session-title-display').innerText = SESSION_NUM.replace('s', '');
-    }
     
     window.filteredImages = [];
     var inlineIdx = 0;            
     var lIsProgrammatic = false;
     var imageLoadTimer = null; 
-    var hdLoadTimer = null; // New timer for progressive HD loading
+    var hdLoadTimer = null; 
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     window.onload = function() {
       if (!SESSION_NUM) {
         document.getElementById('loader').innerHTML = "<div class='loader-text'>No session specified</div>";
+        document.querySelector('.share-btn').style.display = 'none';
         return;
+      }
+
+      // --- iOS SPECIFIC UI MODIFICATION ---
+      if (isIOS) {
+        const dlBtn = document.getElementById('l-download-btn');
+        dlBtn.removeAttribute('href');
+        dlBtn.removeAttribute('download');
+        dlBtn.innerText = "Long press the image and Save to Photos";
+        
+        // Transform the button into a centered HUD banner
+        dlBtn.style.pointerEvents = "none";
+        dlBtn.style.fontSize = "13px";
+        dlBtn.style.background = "rgba(0,0,0,0.65)";
+        dlBtn.style.border = "none";
+        dlBtn.style.left = "50%";
+        dlBtn.style.transform = "translateX(-50%)";
+        dlBtn.style.whiteSpace = "nowrap";
+        dlBtn.style.height = "36px";
+        dlBtn.style.padding = "0 16px";
       }
 
       fetch(`${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}`)
@@ -128,9 +176,47 @@
       document.getElementById('thumb-grid').innerHTML = gridHtml;
     }
 
-    // ==========================================
-    // UNIFIED INLINE SCRUBBER FUNCTIONS
-    // ==========================================
+    let qrGenerated = false;
+    
+    function openShareModal() {
+      document.getElementById('shareModal').style.display = 'flex';
+      if (!qrGenerated) {
+        new QRCode(document.getElementById("share-qr-code"), {
+          text: window.location.href, 
+          width: 160, height: 160, correctLevel: QRCode.CorrectLevel.L
+        });
+        qrGenerated = true;
+      }
+    }
+
+    function closeShareModal() { document.getElementById('shareModal').style.display = 'none'; }
+
+    function copyLink() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        const btn = document.getElementById('copy-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "✓ Link Copied!";
+        btn.style.background = "#2b2b2b"; 
+        setTimeout(() => { btn.innerHTML = originalText; btn.style.background = "#4285f4"; }, 2000);
+      });
+    }
+
+    function downloadQR() {
+      const qrContainer = document.getElementById('share-qr-code');
+      const canvas = qrContainer.querySelector('canvas');
+      const img = qrContainer.querySelector('img');
+      let url = canvas ? canvas.toDataURL("image/png") : (img ? img.src : '');
+      
+      if (url) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Gallery-QR-${SESSION_NUM || 'Share'}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    }
+
     function openInlineCarousel(idx) {
       inlineIdx = idx;
       document.getElementById('lightbox').style.display = 'flex';
@@ -160,7 +246,11 @@
       var timeB = document.getElementById('l-time');
       timeB.style.left = pct + '%'; timeB.innerText = img.displayTime; 
       document.getElementById('l-count').innerText = `${idx + 1} / ${window.filteredImages.length}`; 
-      document.getElementById('l-download-btn').href = img.downloadUrl;
+      
+      // Update the download link ONLY for Android/Desktop users
+      if (!isIOS) {
+        document.getElementById('l-download-btn').href = img.downloadUrl;
+      }
       
       document.querySelectorAll('#l-filmstripWrapper .filmstrip-thumb.active').forEach(el => el.classList.remove('active')); 
       const active = document.getElementById('lt-' + idx); 
@@ -175,7 +265,6 @@
         }
       }
       
-      // Clear both timers to prevent fetching outdated images if swiping fast
       clearTimeout(imageLoadTimer);
       clearTimeout(hdLoadTimer);
       
@@ -184,27 +273,17 @@
       const imgEl = document.getElementById('l-img');
       
       imageLoadTimer = setTimeout(() => {
-        // If it isn't the preview and isn't the HD, we need to load a new image
         if (imgEl.src !== w1024Url && imgEl.src !== hdUrl) {
           imgEl.style.opacity = 0; 
           setTimeout(() => { 
             imgEl.src = w1024Url; 
             imgEl.onload = () => {
               imgEl.style.opacity = 1; 
-              
-              // NEW: Progressive HD Preloading
-              // After the fast preview is visible, wait 1 second then silently fetch the uncompressed file.
               hdLoadTimer = setTimeout(() => {
                 const tempImg = new Image();
-                tempImg.onload = () => {
-                  // Only swap if the user hasn't swiped away while downloading
-                  if (inlineIdx === idx) {
-                    imgEl.src = hdUrl;
-                  }
-                };
+                tempImg.onload = () => { if (inlineIdx === idx) imgEl.src = hdUrl; };
                 tempImg.src = hdUrl;
               }, 1000);
-              
             };
           }, 20);
         }
