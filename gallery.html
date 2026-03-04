@@ -106,16 +106,14 @@
   </div>
 
   <script>
-   // At the top of the <script> block inside gallery.html:
-
-const urlParams = new URLSearchParams(window.location.search);
-const SESSION_NUM = urlParams.get('session');
-const DYNAMIC_BACKEND = urlParams.get('backend'); 
-
-// IMPORTANT: Set this to your Apps Script Web App URL to act as a fallback
-const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/AKfycbzEUz2hwAYe3V5im0_jExevNjKGKUYzZqkJhVMCOWPy8TpvpYW_oIGYQEvJLbXd0dTQ/exec"; 
-
-// ... the rest of your original popout script logic remains exactly the same!
+    const urlParams = new URLSearchParams(window.location.search);
+    const SESSION_NUM = urlParams.get('session');
+    const PHOTO_ID = urlParams.get('photo'); // Grab the single photo ID if it exists
+    const FOLDER_ID = urlParams.get('folderId'); // Grab the folder ID needed for sessions
+    const DYNAMIC_BACKEND = urlParams.get('backend'); 
+    
+    // IMPORTANT: Set this to your Apps Script Web App URL
+    const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/AKfycbzEUz2hwAYe3V5im0_jExevNjKGKUYzZqkJhVMCOWPy8TpvpYW_oIGYQEvJLbXd0dTQ/exec"; 
     
     window.filteredImages = [];
     var inlineIdx = 0;            
@@ -126,10 +124,27 @@ const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.goog
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     window.onload = function() {
-      if (!SESSION_NUM) {
-        document.getElementById('loader').innerHTML = "<div class='loader-text'>No session specified</div>";
+      // 1. Check if we have AT LEAST a session or a single photo ID
+      if (!SESSION_NUM && !PHOTO_ID) {
+        document.getElementById('loader').innerHTML = "<div class='loader-text'>No session or photo specified</div>";
         document.querySelector('.share-btn').style.display = 'none';
         return;
+      }
+
+      // 2. Build the correct fetch URL depending on what the user clicked
+      let fetchUrl = "";
+      if (SESSION_NUM) {
+        if (!FOLDER_ID) {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
+            return;
+        }
+        // Send session request WITH folderId
+        fetchUrl = `${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}&folderId=${FOLDER_ID}`;
+      } else if (PHOTO_ID) {
+        // Send single photo request
+        fetchUrl = `${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}`;
+        // Hide the share button for single photos if you want a cleaner UI
+        document.querySelector('.share-btn').style.display = 'none'; 
       }
 
       if (isIOS) {
@@ -158,13 +173,16 @@ const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.goog
         qrDlBtn.style.fontSize = "13px";
         qrDlBtn.style.padding = "0";
         qrDlBtn.style.height = "auto";
-        qrDlBtn.style.margin = "-5px 0 5px 0"; // Pulls the text up snugly against the QR box
+        qrDlBtn.style.margin = "-5px 0 5px 0"; 
       }
 
-      fetch(`${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}`)
+      // 3. Fire the request!
+      fetch(fetchUrl)
         .then(response => response.json())
         .then(result => {
           if (result.status === 'success') {
+            // Because the backend returns single photos as a 1-item array,
+            // setupLandingPage handles it perfectly without any extra code!
             setupLandingPage(result.data);
           } else {
             document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + result.message + "</div>";
@@ -177,6 +195,8 @@ const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.goog
 
       setupInlineTouch(); 
     };
+
+    // ... [KEEP ALL YOUR OTHER FUNCTIONS: setupLandingPage, openShareModal, etc.]
 
     function setupLandingPage(photos) {
       document.getElementById('loader').style.display = 'none';
