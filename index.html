@@ -57,9 +57,9 @@
 <body>
 
   <div class="landing-page">
-    <div class="header-container" id="main-header">
+    <div class="header-container">
       <h2>Your gallery</h2>
-      <button class="share-btn" id="main-share-btn" onclick="openShareModal()">
+      <button class="share-btn" onclick="openShareModal()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
         Share
       </button>
@@ -86,15 +86,15 @@
 
   <div id="lightbox" class="lightbox">
     <a id="l-download-btn" class="download-action" href="" download>⬇ Download</a>
-    <div class="popout-close" id="l-close-btn" onclick="closeLightbox()">✕</div>
+    <div class="popout-close" onclick="closeLightbox()">✕</div>
     
     <div class="image-stage" id="l-stage">
-      <div class="nav-btn left" id="nav-left" onclick="navigateInline(-1)">&#10094;</div>
+      <div class="nav-btn left" onclick="navigateInline(-1)">&#10094;</div>
       <img id="l-img" class="main" src="" onload="this.style.opacity=1">
-      <div class="nav-btn right" id="nav-right" onclick="navigateInline(1)">&#10095;</div>
+      <div class="nav-btn right" onclick="navigateInline(1)">&#10095;</div>
     </div>
     
-    <div class="modal-bottom-controls" id="l-bottom-controls">
+    <div class="modal-bottom-controls">
       <div id="l-count" style="font-size:12px; color:#aaa; font-weight:bold;"></div>
       <div class="filmstrip-wrapper" id="l-filmstripWrapper"></div>
       <div class="scrubber-track" id="l-track">
@@ -107,9 +107,7 @@
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-// Check for 'session' first, fallback to 'folderId' if it exists
-const SESSION_NUM = urlParams.get('session') || urlParams.get('folderId');
-const PHOTO_ID = urlParams.get('photo');
+    const SESSION_NUM = urlParams.get('session');
     const DYNAMIC_BACKEND = urlParams.get('backend'); 
     const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/YOUR_PRIMARY_SCRIPT_ID/exec"; 
     
@@ -122,9 +120,9 @@ const PHOTO_ID = urlParams.get('photo');
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     window.onload = function() {
-      if (!SESSION_NUM && !PHOTO_ID) {
-        document.getElementById('loader').innerHTML = "<div class='loader-text'>No session or photo specified</div>";
-        document.getElementById('main-share-btn').style.display = 'none';
+      if (!SESSION_NUM) {
+        document.getElementById('loader').innerHTML = "<div class='loader-text'>No session specified</div>";
+        document.querySelector('.share-btn').style.display = 'none';
         return;
       }
 
@@ -154,65 +152,25 @@ const PHOTO_ID = urlParams.get('photo');
         qrDlBtn.style.fontSize = "13px";
         qrDlBtn.style.padding = "0";
         qrDlBtn.style.height = "auto";
-        qrDlBtn.style.margin = "-5px 0 5px 0"; 
+        qrDlBtn.style.margin = "-5px 0 5px 0"; // Pulls the text up snugly against the QR box
       }
 
-      // --- LOGIC FOR SINGLE PHOTO ---
-      if (PHOTO_ID) {
-        document.getElementById('main-header').style.display = 'none'; // Hide header
-        fetch(`${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}`)
-          .then(response => response.json())
-          .then(result => {
-            if (result.status === 'success' && result.data && result.data.length > 0) {
-              setupSinglePhotoPage(result.data[0]);
-            } else {
-              document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + (result.message || "Photo not found") + "</div>";
-            }
-          })
-          .catch(err => {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Failed to load photo</div>";
-            console.error(err);
-          });
-      } 
-      // --- LOGIC FOR FULL SESSION ---
-      else if (SESSION_NUM) {
-        fetch(`${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}`)
-          .then(response => response.json())
-          .then(result => {
-            if (result.status === 'success') {
-              setupLandingPage(result.data);
-            } else {
-              document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + result.message + "</div>";
-            }
-          })
-          .catch(err => {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Failed to load photos</div>";
-            console.error(err);
-          });
-      }
+      fetch(`${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}`)
+        .then(response => response.json())
+        .then(result => {
+          if (result.status === 'success') {
+            setupLandingPage(result.data);
+          } else {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + result.message + "</div>";
+          }
+        })
+        .catch(err => {
+          document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Failed to load photos</div>";
+          console.error(err);
+        });
 
       setupInlineTouch(); 
     };
-
-    function setupSinglePhotoPage(photo) {
-      document.getElementById('loader').style.display = 'none';
-      
-      // Add just the single photo to the array so the lightbox works smoothly
-      window.filteredImages = [{
-        baseUrl: photo.baseUrl,
-        displayTime: '', // Not needed for single photo
-        downloadUrl: photo.downloadUrl
-      }];
-
-      // Hide all the gallery navigation tools since there's only one photo
-      document.getElementById('l-bottom-controls').style.display = 'none';
-      document.getElementById('nav-left').style.display = 'none';
-      document.getElementById('nav-right').style.display = 'none';
-      document.getElementById('l-close-btn').style.display = 'none'; // No grid to return to
-      
-      // Auto-open the lightbox
-      openInlineCarousel(0);
-    }
 
     function setupLandingPage(photos) {
       document.getElementById('loader').style.display = 'none';
@@ -389,19 +347,15 @@ const PHOTO_ID = urlParams.get('photo');
       stage.addEventListener('touchend', e => { 
           lEndX = e.changedTouches[0].screenX; 
           isUserTouching = false;
-          // Only process swipes if there is more than 1 image
-          if (window.filteredImages.length > 1) {
-            if (lStartX - lEndX > 50) navigateInline(1); 
-            if (lEndX - lStartX > 50) navigateInline(-1); 
-          }
+          if (lStartX - lEndX > 50) navigateInline(1); 
+          if (lEndX - lStartX > 50) navigateInline(-1); 
       }, {passive: true});
       
       window.addEventListener('keydown', (e) => { 
           if (document.getElementById('lightbox').style.display !== 'none') {
-              if (e.key === 'ArrowRight' && window.filteredImages.length > 1) navigateInline(1); 
-              else if (e.key === 'ArrowLeft' && window.filteredImages.length > 1) navigateInline(-1); 
-              // Removed Escape closing since single-image mode hides the close button anyway
-              else if (e.key === 'Escape' && !PHOTO_ID) closeLightbox(); 
+              if (e.key === 'ArrowRight') navigateInline(1); 
+              else if (e.key === 'ArrowLeft') navigateInline(-1); 
+              else if (e.key === 'Escape') closeLightbox(); 
           }
       });
 
