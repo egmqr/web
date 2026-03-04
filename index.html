@@ -113,14 +113,17 @@
         return;
       }
       
+      // 1. Fire the session state check
       fetch(`${BACKEND_URL}?api=getSessionState&folderId=${TARGET_FOLDER_ID}`)
         .then(res => res.json())
         .then(state => {
           isSessionActive = state.isActive;
           updateSessionUI();
-          checkDrive(); 
         })
         .catch(err => console.error("Error starting app:", err));
+
+      // 2. Fire the photo fetch IMMEDIATELY (Do not wait for the session check!)
+      checkDrive(); 
     }
     
     function toggleSession() {
