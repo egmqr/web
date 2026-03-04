@@ -212,6 +212,23 @@
         gridHtml += "<img src='" + p.previewUrl + "' loading='lazy' decoding='async' onclick='openInlineCarousel(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>"; 
       });
       document.getElementById('thumb-grid').innerHTML = gridHtml;
+
+      // ---> NEW: Auto-open lightbox for single photos <---
+      if (PHOTO_ID && photos.length === 1) {
+        setTimeout(() => {
+          openInlineCarousel(0);
+          
+          // Clean up the UI for single photos (hide filmstrip and scrubber)
+          document.getElementById('l-count').style.display = 'none';
+          document.getElementById('l-filmstripWrapper').style.display = 'none';
+          document.getElementById('l-track').style.display = 'none';
+        }, 50); // Small delay ensures the DOM is ready
+      } else {
+        // Ensure UI elements remain visible for full session galleries
+        document.getElementById('l-count').style.display = 'block';
+        document.getElementById('l-filmstripWrapper').style.display = 'block';
+        document.getElementById('l-track').style.display = 'flex';
+      }
     }
 
     let qrGenerated = false;
