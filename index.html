@@ -107,8 +107,9 @@
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const SESSION_NUM = urlParams.get('session');
-    const PHOTO_ID = urlParams.get('photo'); // New variable for single photo requests
+// Check for 'session' first, fallback to 'folderId' if it exists
+const SESSION_NUM = urlParams.get('session') || urlParams.get('folderId');
+const PHOTO_ID = urlParams.get('photo');
     const DYNAMIC_BACKEND = urlParams.get('backend'); 
     const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/YOUR_PRIMARY_SCRIPT_ID/exec"; 
     
