@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    /* [YOUR EXACT CSS - UNCHANGED] */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; padding: 0; background: #111; color: white; font-family: -apple-system, sans-serif; padding-bottom: 80px; }
+    .header { position: sticky; top: 0; background: rgba(17, 17, 17, 0.95); backdrop-filter: blur(10px); padding: 15px; z-index: 100; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    h2 { margin: 0; font-size: 18px; letter-spacing: 1px; }
+    .session-btn { padding: 8px 16px; border-radius: 20px; border: none; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s; }
+    .session-btn.idle { background: #4285f4; color: white; }
+    .session-btn.active { background: #ea4335; color: white; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(234, 67, 53, 0); } 100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); } }
+    .feed-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 15px; display: flex; flex-direction: column; gap: 20px; }
+    .card { background: #222; border: 1px solid #444; border-radius: 16px; padding: 15px; display: flex; flex-direction: column; gap: 15px; animation: slideIn 0.4s ease-out forwards; }
+    .session-card { border: 2px solid #4285f4; transition: all 0.4s ease; }
+    .session-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 15px; margin-bottom: 10px; }
+    .session-link { text-decoration: none; color: #4285f4; transition: opacity 0.2s; }
+    .session-link:active { opacity: 0.6; }
+    .session-title { font-size: 18px; font-weight: bold; margin: 0; display: flex; align-items: center; gap: 5px; }
+    .session-title::after { content: '↗'; font-size: 12px; opacity: 0.7; }
+    .session-items-container { display: flex; flex-direction: column; gap: 10px; }
+    .photo-row { display: flex; gap: 12px; transition: all 0.3s ease; align-items: center; }
+    .img-preview { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #555; background: #000; flex-shrink: 0; }
+    .controls-col { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
+    .controls-row { display: flex; gap: 8px; width: 100%; }
+    .name-input { flex-grow: 1; padding: 10px 12px; background: #111; border: 1px solid #555; color: white; border-radius: 8px; font-size: 16px; min-width: 0; }
+    .save-btn { background: #0f9d58; color: white; flex-grow: 1; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; padding: 10px; min-height: 44px; position: relative; z-index: 10; } 
+    .save-btn:disabled { background: #333; color: #888; }
+    .delete-btn { background: #ea4335; color: white; flex-shrink: 0; width: 44px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: width 0.2s ease, background 0.2s; min-height: 44px; padding: 0 10px; display: flex; align-items: center; justify-content: center; position: relative; z-index: 10; } 
+    .save-status { font-size: 11px; height: 14px; font-weight: bold; color: #0f9d58; margin-top: 2px; }
+    .qr-code { width: 90px; height: 90px; background: white; padding: 6px; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+    .qr-section { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 5px; padding-top: 15px; border-top: 1px solid #333; }
+    .qr-code-large { width: 132px; height: 132px; background: white; padding: 6px; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+    .qr-label { font-size: 11px; color: #888; font-weight: bold; letter-spacing: 0.5px; }
+    #status { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 30px; font-size: 12px; display: flex; align-items: center; gap: 8px; z-index: 1000; }
+    .dot { width: 8px; height: 8px; background: #0f9d58; border-radius: 50%; }
+    .dot.scanning { animation: blink 1s infinite; }
+    @keyframes blink { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
+    .modal-box { background: #222; border-radius: 20px; padding: 25px; width: 85%; max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h2 id="boothHeader">Booth Feed</h2>
+    <div style="display:flex; gap:10px;">
+      <button id="syncBtn" class="session-btn idle" style="background:#444;" onclick="manualSync()">🔄 Sync</button>
+      <button id="sessionToggle" class="session-btn idle" onclick="toggleSession()">Start Session</button>
+    </div>
+  </div>
+
+  <div id="feed" class="feed-container"></div>
+  <div id="status"><div class="dot" id="status-dot"></div><span id="status-text">Connecting...</span></div>
+
+  <div id="qrModal" class="modal-overlay" onclick="closeQR()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <h3 style="margin:0;">Scan to view</h3>
+      <div id="enlarged-qr" style="width:250px; height:250px; background:white; padding:10px; border-radius:12px;"></div>
+      <button class="modal-btn" style="background:#4285f4; color:white; width:100%; padding:15px; border-radius:10px; border:none; font-weight:bold; margin-top:10px;" onclick="closeQR()">Done</button>
+    </div>
+  </div>
+
+  <script>
+    // 1. CONFIGURATION
+    var BACKEND_URL = "https://script.google.com/macros/s/AKfycbzEUz2hwAYe3V5im0_jExevNjKGKUYzZqkJhVMCOWPy8TpvpYW_oIGYQEvJLbXd0dTQ/exec"; 
+    
+    // Note: Pointing to the newly renamed gallery.html
+    var GITHUB_URL = "https://egmqr.github.io/web/gallery.html"; 
+
+    // 2. PARSE URL PARAMETERS
+    const urlParams = new URLSearchParams(window.location.search);
+    var TARGET_FOLDER_ID = urlParams.get('folderId'); 
+    var BOOTH_NUM = urlParams.get('booth') || "1";
+
+    document.getElementById('boothHeader').innerText = `Booth ${BOOTH_NUM} Feed`;
+
+    var seenIds = {};
+    var isSessionActive = false;
+    var pollTimer;
+    var BASE_INTERVAL = 4000;      
+    var MAX_INTERVAL = 30000;      
+    var currentInterval = BASE_INTERVAL;
+
+    document.addEventListener("visibilitychange", function() {
+      if (document.hidden) {
+        clearTimeout(pollTimer);
+        document.getElementById('status-text').innerText = "Paused (Background)";
+        document.getElementById('status-dot').classList.remove('scanning');
+      } else {
+        currentInterval = BASE_INTERVAL; 
+        checkDrive();
+      }
+    });
+
+    function start() { 
+      if (!TARGET_FOLDER_ID) {
+        document.getElementById('status-text').innerText = "Error: Missing Folder ID in URL.";
+        document.getElementById('status-dot').style.background = "#ea4335";
+        return;
+      }
+      
+      fetch(`${BACKEND_URL}?api=getSessionState&folderId=${TARGET_FOLDER_ID}`)
+        .then(res => res.json())
+        .then(state => {
+          isSessionActive = state.isActive;
+          updateSessionUI();
+          checkDrive(); 
+        })
+        .catch(err => console.error("Error starting app:", err));
+    }
+    
+    function toggleSession() {
+      var btn = document.getElementById('sessionToggle');
+      var starting = !isSessionActive;
+      
+      btn.disabled = true;
+      btn.innerText = starting ? "Starting..." : "Ending...";
+      btn.style.opacity = "0.7"; 
+      
+      fetch(`${BACKEND_URL}?api=toggleSession&folderId=${TARGET_FOLDER_ID}&isStarting=${starting}`)
+        .then(res => res.json())
+        .then(data => {
+          btn.disabled = false;
+          btn.style.opacity = "1";
+          isSessionActive = starting;
+          updateSessionUI();
+          
+          if (isSessionActive && data.sessionNum) {
+            createSessionCard(data.sessionNum);
+          }
+        });
+    }
+
+    function createSessionCard(sessionNum) {
+      if (document.getElementById("session-card-" + sessionNum)) return;
+      
+      var galleryUrl = `${GITHUB_URL}?session=${sessionNum}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
+      var displayNum = sessionNum.replace('s', ''); 
+      var feed = document.getElementById('feed');
+
+      var div = document.createElement('div');
+      div.className = "card session-card";
+      div.id = "session-card-" + sessionNum;
+      
+      div.innerHTML = `
+        <div class="session-header">
+          <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
+            <a href="${galleryUrl}" target="_blank" class="session-link">
+               <h3 class="session-title">Session ${displayNum}</h3>
+            </a>
+            <button class="delete-btn" style="width:auto; padding:5px 12px; font-size:11px; border-radius:15px; background:#cc0000; min-height:30px;" onclick="requestDeleteSession('${sessionNum}', this)">🗑 Delete Session</button>
+          </div>
+          <div class="qr-container" style="display:flex; flex-direction:column; align-items:center; gap:5px;">
+            <div id="qr-session-${sessionNum}" class="qr-code" onclick="showLargeQR('${galleryUrl}')"></div>
+            <span style="font-size:10px; color:#888; font-weight:bold;">CLIENT GALLERY</span>
+          </div>
+        </div>
+        <div class="session-items-container" id="container-${sessionNum}"></div>
+      `;
+      
+      feed.insertBefore(div, feed.firstChild);
+      new QRCode(document.getElementById("qr-session-" + sessionNum), { text: galleryUrl, width: 78, height: 78, correctLevel: QRCode.CorrectLevel.L });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateSessionUI() {
+      var btn = document.getElementById('sessionToggle');
+      if (isSessionActive) {
+        btn.className = "session-btn active";
+        btn.innerText = "End Session";
+      } else {
+        btn.className = "session-btn idle";
+        btn.innerText = "Start Session";
+      }
+    }
+    
+    function manualSync() {
+      var btn = document.getElementById('syncBtn');
+      btn.innerText = "⏳ Syncing";
+      clearTimeout(pollTimer);
+      currentInterval = BASE_INTERVAL; 
+      checkDrive();
+      setTimeout(function() { btn.innerText = "🔄 Sync"; }, 1500); 
+    }
+
+    function checkDrive() {
+      if (document.hidden || !TARGET_FOLDER_ID) return; 
+      
+      document.getElementById('status-dot').classList.add('scanning');
+      document.getElementById('status-text').innerText = "Syncing...";
+      
+      fetch(`${BACKEND_URL}?api=getRecentPhotos&folderId=${TARGET_FOLDER_ID}`)
+        .then(res => res.json())
+        .then(data => onSuccess(data.photos))
+        .catch(err => onFailure(err));
+    }
+    
+    function onSuccess(photos) {
+      document.getElementById('status-dot').classList.remove('scanning');
+      document.getElementById('status-text').innerText = "Listening...";
+      
+      var foundNewPhotos = false;
+      
+      if (photos && photos.length > 0) {
+        var newPhotos = [];
+        for (var i = 0; i < photos.length; i++) {
+          if (!seenIds[photos[i].id]) { 
+            newPhotos.push(photos[i]); 
+            seenIds[photos[i].id] = true; 
+            foundNewPhotos = true;
+          }
+        }
+        
+        if (newPhotos.length > 0) {
+          newPhotos.sort(function(a, b) {
+            return new Date(a.createdTime).getTime() - new Date(b.createdTime).getTime();
+          });
+          newPhotos.forEach(function(p) { routeCard(p); });
+        }
+      }
+      
+      if (foundNewPhotos) {
+        currentInterval = BASE_INTERVAL;
+      } else {
+        var increment = isSessionActive ? 2000 : 5000; 
+        currentInterval = Math.min(currentInterval + increment, MAX_INTERVAL);
+      }
+      
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(checkDrive, currentInterval); 
+    }
+    
+    function onFailure(e) { 
+      document.getElementById('status-dot').classList.remove('scanning');
+      document.getElementById('status-text').innerText = "Retrying connection...";
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(checkDrive, 10000);
+    }
+    
+    function routeCard(photo) {
+      var sessionMatch = photo.name.match(/-(s\d{3})(?:\.[a-zA-Z0-9]+)?$/);
+      if (sessionMatch) {
+        addSessionItem(photo, sessionMatch[1]);
+      } else {
+        addSingleCard(photo);
+      }
+    }
+
+    function addSessionItem(photo, sessionNum) {
+      var cardId = "session-card-" + sessionNum;
+      var sessionCard = document.getElementById(cardId);
+
+      if (!sessionCard) {
+        createSessionCard(sessionNum);
+      } else {
+        var feed = document.getElementById('feed');
+        feed.insertBefore(sessionCard, feed.firstChild);
+      }
+
+      var itemData = generatePhotoHTML(photo);
+      var itemRow = document.createElement('div');
+      itemRow.className = "photo-row";
+      itemRow.id = "item-" + photo.id;
+      
+      itemRow.style.paddingBottom = "15px";
+      itemRow.style.borderBottom = "1px solid #333";
+      itemRow.style.borderRadius = "0";
+      itemRow.style.background = "transparent";
+      
+      itemRow.innerHTML = itemData.html;
+      document.getElementById('container-' + sessionNum).prepend(itemRow);
+    }
+
+    function addSingleCard(photo) {
+      var feed = document.getElementById('feed');
+      var itemData = generatePhotoHTML(photo);
+      
+      var cardDiv = document.createElement('div');
+      cardDiv.className = "card";
+      cardDiv.id = "item-" + photo.id; 
+      
+      var contentHtml = `<div class="photo-row" style="background:transparent; padding:0; border:none;">${itemData.html}</div>`;
+      contentHtml += `
+        <div class="qr-section">
+          <div id='qr-${photo.id}' class='qr-code-large' onclick='showLargeQR("${itemData.singleGalleryUrl}")'></div>
+          <span class="qr-label">CLIENT VIEW</span>
+        </div>
+      `;
+      
+      cardDiv.innerHTML = contentHtml;
+      feed.insertBefore(cardDiv, feed.firstChild); 
+      
+      new QRCode(document.getElementById("qr-" + photo.id), { 
+        text: itemData.singleGalleryUrl, 
+        width: 120, height: 120, correctLevel: QRCode.CorrectLevel.L 
+      });
+    }
+
+    function generatePhotoHTML(photo) {
+      var displayName = photo.name ? photo.name.replace(/\.[^/.]+$/, "").replace(/-s\d{3}$/, "") : "";
+      var cleanUrl = photo.thumbUrl ? photo.thumbUrl.split('=')[0] : "https://drive.google.com/uc?id=" + photo.id; 
+      var previewSrc = cleanUrl + '=w200';
+      
+      var singleGalleryUrl = `${GITHUB_URL}?photo=${photo.id}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
+      
+      var html = `
+        <img class='img-preview' id='img-${photo.id}' src='${previewSrc}'>
+        <div class='controls-col'>
+          <div class='controls-row'><input type='text' id='input-${photo.id}' class='name-input' value='${displayName}' placeholder='Filename...'></div>
+          <div class='controls-row'>
+            <button id='btn-${photo.id}' class='save-btn' onclick='updateFileName("${photo.id}")'>SAVE</button>
+            <button class='delete-btn' onclick='requestDelete("${photo.id}", this)'>×</button>
+          </div>
+          <div class='save-status' id='status-${photo.id}'></div>
+        </div>
+      `;
+      return { html: html, singleGalleryUrl: singleGalleryUrl };
+    }
+
+    function updateFileName(fileId) {
+      var inputEl = document.getElementById('input-' + fileId);
+      var btnEl = document.getElementById('btn-' + fileId);
+      var statusEl = document.getElementById('status-' + fileId);
+      var newName = inputEl.value;
+      
+      btnEl.disabled = true;
+      btnEl.innerText = "...";
+      statusEl.innerText = "Syncing with Drive..."; 
+      statusEl.style.color = "#4285f4";
+
+      fetch(`${BACKEND_URL}?api=rename&folderId=${TARGET_FOLDER_ID}&fileId=${fileId}&newName=${encodeURIComponent(newName)}`)
+        .then(res => res.json())
+        .then(data => {
+          btnEl.disabled = false;
+          btnEl.innerText = "SAVE";
+          if(data.result === "Success") {
+            statusEl.innerText = "✓ FILENAME SAVED";
+            statusEl.style.color = "#0f9d58";
+            setTimeout(function() { statusEl.innerText = ""; }, 3000);
+          } else {
+            statusEl.innerText = "Error Saving!";
+            statusEl.style.color = "#ea4335";
+          }
+        });
+    }
+
+    function requestDelete(fId, btnEl) {
+      if (btnEl.innerText !== "Sure?") {
+        btnEl.innerText = "Sure?";
+        btnEl.style.background = "#880000";
+        btnEl.style.width = "65px"; 
+        
+        setTimeout(function() {
+          if (btnEl && btnEl.innerText === "Sure?") {
+            btnEl.innerText = "×";
+            btnEl.style.background = "#ea4335";
+            btnEl.style.width = "44px"; 
+          }
+        }, 4000);
+        return; 
+      }
+      
+      var itemRow = document.getElementById('item-' + fId);
+      var statusEl = document.getElementById('status-' + fId);
+      
+      btnEl.innerText = "...";
+      if (statusEl) {
+        statusEl.innerText = "Deleting from Drive...";
+        statusEl.style.color = "#ea4335";
+      }
+
+      fetch(`${BACKEND_URL}?api=delete&folderId=${TARGET_FOLDER_ID}&fileId=${fId}`)
+        .then(res => res.json())
+        .then(data => {
+          if(data.result === "Success") {
+            if (itemRow) {
+              itemRow.style.opacity = "0";
+              itemRow.style.transform = "scale(0.95)";
+              setTimeout(function() { itemRow.remove(); }, 300);
+            }
+            seenIds[fId] = "deleted"; 
+          } else {
+            if (statusEl) { statusEl.innerText = "Error Deleting!"; statusEl.style.color = "#ea4335"; }
+            btnEl.innerText = "×";
+            btnEl.style.background = "#ea4335";
+            btnEl.style.width = "44px";
+          }
+        });
+    }
+
+    function requestDeleteSession(sessionNum, btnEl) {
+      if (btnEl.innerText !== "Are you sure? (Deletes ALL photos)") {
+        var oldText = btnEl.innerText;
+        btnEl.innerText = "Are you sure? (Deletes ALL photos)";
+        btnEl.style.background = "#880000";
+        
+        setTimeout(function() {
+          if (btnEl && btnEl.innerText === "Are you sure? (Deletes ALL photos)") {
+            btnEl.innerText = oldText;
+            btnEl.style.background = "#cc0000";
+          }
+        }, 5000);
+        return;
+      }
+      
+      var card = document.getElementById('session-card-' + sessionNum);
+      if (card) {
+        card.style.opacity = "0.5";
+        card.style.pointerEvents = "none";
+      }
+      
+      document.getElementById('status-dot').classList.add('scanning');
+      document.getElementById('status-text').innerText = "Trashing session files...";
+      
+      fetch(`${BACKEND_URL}?api=deleteSession&folderId=${TARGET_FOLDER_ID}&sessionStr=${sessionNum}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('status-dot').classList.remove('scanning');
+          document.getElementById('status-text').innerText = "Listening...";
+          
+          if(data.result === "Success") {
+            if (card) {
+              card.style.transform = "scale(0.9)";
+              card.style.opacity = "0";
+              setTimeout(function() { card.remove(); }, 400);
+            }
+            clearTimeout(pollTimer); 
+            start();
+          } else {
+            alert("Failed to delete session: " + data.result);
+            if (card) {
+               card.style.opacity = "1";
+               card.style.pointerEvents = "auto";
+            }
+          }
+        });
+    }
+
+    function showLargeQR(url) { 
+      var container = document.getElementById('enlarged-qr');
+      container.innerHTML = ""; 
+      new QRCode(container, { text: url, width: 230, height: 230, correctLevel: QRCode.CorrectLevel.L });
+      document.getElementById('qrModal').style.display = 'flex'; 
+    }
+    
+    function closeQR() { document.getElementById('qrModal').style.display = 'none'; }
+    window.onload = function() { setTimeout(start, 500); };
+  </script>
+</body>
+</html>
