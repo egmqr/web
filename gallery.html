@@ -106,10 +106,16 @@
   </div>
 
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const SESSION_NUM = urlParams.get('session');
-    const DYNAMIC_BACKEND = urlParams.get('backend'); 
-    const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/YOUR_PRIMARY_SCRIPT_ID/exec"; 
+   // At the top of the <script> block inside gallery.html:
+
+const urlParams = new URLSearchParams(window.location.search);
+const SESSION_NUM = urlParams.get('session');
+const DYNAMIC_BACKEND = urlParams.get('backend'); 
+
+// IMPORTANT: Set this to your Apps Script Web App URL to act as a fallback
+const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/AKfycbzEUz2hwAYe3V5im0_jExevNjKGKUYzZqkJhVMCOWPy8TpvpYW_oIGYQEvJLbXd0dTQ/exec"; 
+
+// ... the rest of your original popout script logic remains exactly the same!
     
     window.filteredImages = [];
     var inlineIdx = 0;            
