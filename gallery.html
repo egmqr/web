@@ -112,7 +112,8 @@
     <div class="popout-close" onclick="closeLightbox()">✕</div>
     
     <div class="image-stage" id="l-stage">
-      <div id="hd-hint" class="hint-banner"></div> <div class="nav-btn left" onclick="navigateInline(-1)">&#10094;</div>
+      <div id="hd-hint" class="hint-banner"></div> 
+      <div class="nav-btn left" onclick="navigateInline(-1)">&#10094;</div>
       <img id="l-img" class="main" src="" onload="this.style.opacity=1">
       <div class="nav-btn right" onclick="navigateInline(1)">&#10095;</div>
     </div>
@@ -180,12 +181,9 @@
       }
 
       if (isIOS) {
-        // Replaced dlBtn.innerText override: We simply hide the download button 
-        // entirely on iOS and let the top HD hint banner take its place.
         const dlBtn = document.getElementById('l-download-btn');
         dlBtn.style.display = 'none';
 
-        // iOS Share Modal QR hint 
         const qrDlBtn = document.getElementById('qr-dl-btn');
         qrDlBtn.removeAttribute('onclick');
         qrDlBtn.innerText = "Long press QR image and Save to Photos";
@@ -353,7 +351,9 @@
       
       const w1024Url = img.baseUrl.startsWith('data:') ? img.baseUrl : img.baseUrl + '=w1024';
       const hdUrl = img.baseUrl.startsWith('data:') ? img.baseUrl : img.baseUrl + '=s0';
+      
       const imgEl = document.getElementById('l-img');
+      imgEl.onload = null; // Clear immediately to prevent ghost loads from previous cycles
       
       imageLoadTimer = setTimeout(() => {
         if (imgEl.src !== w1024Url && imgEl.src !== hdUrl) {
@@ -361,6 +361,9 @@
           setTimeout(() => { 
             imgEl.src = w1024Url; 
             imgEl.onload = () => {
+              
+              // CRITICAL BUG FIX: Clears the onload handler so swapping to HD doesn't trigger an infinite loop
+              imgEl.onload = null; 
               imgEl.style.opacity = 1; 
               
               hdLoadTimer = setTimeout(() => {
@@ -374,7 +377,6 @@
                         imgEl.src = hdUrl;
                         if (!isData) {
                             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || isIOS;
-                            // Replaced original code logic: Passing isMobile as the second argument forces the hint to persist permanently on phones!
                             showHint(isMobile ? "HD photo is loaded. Long press image then Save to Photos" : "HD photo is loaded.", isMobile);
                         }
                     };
