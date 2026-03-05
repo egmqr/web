@@ -53,27 +53,27 @@
     .scrubber-handle { width: 24px; height: 24px; background: #fff; border-radius: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 2px 8px rgba(0,0,0,0.6); pointer-events: none; } 
     .time-bubble { position: absolute; top: -30px; transform: translateX(-50%); background: #333; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
 
-    /* New Hint Banner CSS */
+    /* Updated Hint Banner CSS (Moved to top) */
     .hint-banner { 
       position: absolute; 
-      bottom: 30px; 
+      top: max(40px, env(safe-area-inset-top)); 
       left: 50%; 
       transform: translateX(-50%); 
       width: fit-content; 
       max-width: 90%; 
-      font-size: 14px; 
+      font-size: 13px; 
       text-align: center; 
       font-weight: bold; 
-      background: rgba(0,0,0,0.85); 
-      padding: 10px 20px; 
-      border-radius: 30px; 
-      z-index: 100; 
+      background: rgba(0,0,0,0.65); 
+      padding: 8px 18px; 
+      border-radius: 20px; 
+      z-index: 100000; 
       backdrop-filter: blur(10px); 
-      border: 1px solid rgba(255,255,255,0.2); 
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      -webkit-backdrop-filter: blur(10px);
       transition: opacity 0.3s ease-in-out; 
       pointer-events: none; 
       opacity: 0; 
+      color: white;
     }
   </style>
 </head>
@@ -131,11 +131,10 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const SESSION_NUM = urlParams.get('session');
-    const PHOTO_ID = urlParams.get('photo'); // Grab the single photo ID if it exists
-    const FOLDER_ID = urlParams.get('folderId'); // Grab the folder ID needed for sessions
+    const PHOTO_ID = urlParams.get('photo');
+    const FOLDER_ID = urlParams.get('folderId'); 
     const DYNAMIC_BACKEND = urlParams.get('backend'); 
     
-    // IMPORTANT: Set this to your Apps Script Web App URL
     const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/AKfycbzEUz2hwAYe3V5im0_jExevNjKGKUYzZqkJhVMCOWPy8TpvpYW_oIGYQEvJLbXd0dTQ/exec"; 
     
     window.filteredImages = [];
@@ -146,7 +145,6 @@
     var isUserTouching = false; 
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    // New variables and function for the hint logic
     var hintTimer = null;
 
     function showHint(msg, persist = false) {
@@ -163,44 +161,29 @@
     }
 
     window.onload = function() {
-      // 1. Check if we have AT LEAST a session or a single photo ID
       if (!SESSION_NUM && !PHOTO_ID) {
         document.getElementById('loader').innerHTML = "<div class='loader-text'>No session or photo specified</div>";
         document.querySelector('.share-btn').style.display = 'none';
         return;
       }
 
-      // 2. Build the correct fetch URL depending on what the user clicked
       let fetchUrl = "";
       if (SESSION_NUM) {
         if (!FOLDER_ID) {
             document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
             return;
         }
-        // Send session request WITH folderId
         fetchUrl = `${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}&folderId=${FOLDER_ID}`;
       } else if (PHOTO_ID) {
-        // Send single photo request
         fetchUrl = `${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}`;
-        // Hide the share button for single photos if you want a cleaner UI
         document.querySelector('.share-btn').style.display = 'none'; 
       }
 
       if (isIOS) {
-        // iOS Main Lightbox hint
+        // Replaced dlBtn.innerText override: We simply hide the download button 
+        // entirely on iOS and let the top HD hint banner take its place.
         const dlBtn = document.getElementById('l-download-btn');
-        dlBtn.removeAttribute('href');
-        dlBtn.removeAttribute('download');
-        dlBtn.innerText = "Long press the image then Save to Photos";
-        dlBtn.style.pointerEvents = "none";
-        dlBtn.style.fontSize = "13px";
-        dlBtn.style.background = "rgba(0,0,0,0.65)";
-        dlBtn.style.border = "none";
-        dlBtn.style.left = "50%";
-        dlBtn.style.transform = "translateX(-50%)";
-        dlBtn.style.whiteSpace = "nowrap";
-        dlBtn.style.height = "36px";
-        dlBtn.style.padding = "0 16px";
+        dlBtn.style.display = 'none';
 
         // iOS Share Modal QR hint 
         const qrDlBtn = document.getElementById('qr-dl-btn');
@@ -215,13 +198,10 @@
         qrDlBtn.style.margin = "-5px 0 5px 0"; 
       }
 
-      // 3. Fire the request!
       fetch(fetchUrl)
         .then(response => response.json())
         .then(result => {
           if (result.status === 'success') {
-            // Because the backend returns single photos as a 1-item array,
-            // setupLandingPage handles it perfectly without any extra code!
             setupLandingPage(result.data);
           } else {
             document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + result.message + "</div>";
@@ -250,18 +230,14 @@
       });
       document.getElementById('thumb-grid').innerHTML = gridHtml;
 
-      // ---> NEW: Auto-open lightbox for single photos <---
       if (PHOTO_ID && photos.length === 1) {
         setTimeout(() => {
           openInlineCarousel(0);
-          
-          // Clean up the UI for single photos (hide filmstrip and scrubber)
           document.getElementById('l-count').style.display = 'none';
           document.getElementById('l-filmstripWrapper').style.display = 'none';
           document.getElementById('l-track').style.display = 'none';
-        }, 50); // Small delay ensures the DOM is ready
+        }, 50); 
       } else {
-        // Ensure UI elements remain visible for full session galleries
         document.getElementById('l-count').style.display = 'block';
         document.getElementById('l-filmstripWrapper').style.display = 'block';
         document.getElementById('l-track').style.display = 'flex';
@@ -369,7 +345,6 @@
         }
       }
       
-      // Updated HD Hint loading logic starts here
       clearTimeout(imageLoadTimer);
       clearTimeout(hdLoadTimer);
       clearTimeout(hintTimer);
@@ -399,7 +374,8 @@
                         imgEl.src = hdUrl;
                         if (!isData) {
                             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || isIOS;
-                            showHint(isMobile ? "HD photo is loaded. Long press image then Save to Photos" : "HD photo is loaded.");
+                            // Replaced original code logic: Passing isMobile as the second argument forces the hint to persist permanently on phones!
+                            showHint(isMobile ? "HD photo is loaded. Long press image then Save to Photos" : "HD photo is loaded.", isMobile);
                         }
                     };
 
