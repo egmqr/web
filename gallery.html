@@ -39,8 +39,8 @@
     /* Adjusted download button to be in normal document flow */
     .download-action { margin-top: 15px; height: 44px; padding: 0 25px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 10; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; flex-shrink: 0; }
     
-    /* Adjusted image-stage to leave space at the bottom (150px) for the carousel */
-    .image-stage { position: absolute; top: 0; bottom: 150px; left: 0; right: 0; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; padding-top: 60px; box-sizing: border-box; } 
+    /* Adjusted image-stage to leave space at the bottom (200px) for the carousel to prevent overlap with controls */
+    .image-stage { position: absolute; top: 0; bottom: 200px; left: 0; right: 0; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; padding-top: 60px; box-sizing: border-box; } 
     
     /* Adjusted main image sizing to fill available space without stretching */
     img.main { max-width: 90%; max-height: calc(100% - 60px); transition: opacity 0.3s ease; opacity:0; object-fit: contain; pointer-events: auto; -webkit-touch-callout: default; } 
