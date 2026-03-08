@@ -35,11 +35,15 @@
 
     .lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: #000; z-index: 9999; display: none; flex-direction: column; align-items:center; justify-content:center; overflow:hidden; }
     .popout-close { position: absolute; top: max(40px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); } 
-    .download-action { position: absolute; top: max(40px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); height: 44px; padding: 0 20px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 99999; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; }
     
-    .image-stage { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; } 
+    /* Adjusted download button to be in normal document flow */
+    .download-action { margin-top: 15px; height: 44px; padding: 0 25px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 10; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; flex-shrink: 0; }
     
-    img.main { width: 85%; height: 85%; transition: opacity 0.3s ease; opacity:0; object-fit: contain; pointer-events: auto; -webkit-touch-callout: default; } 
+    /* Adjusted image-stage to leave space at the bottom (150px) for the carousel */
+    .image-stage { position: absolute; top: 0; bottom: 150px; left: 0; right: 0; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; padding-top: 60px; box-sizing: border-box; } 
+    
+    /* Adjusted main image sizing to fill available space without stretching */
+    img.main { max-width: 90%; max-height: calc(100% - 60px); transition: opacity 0.3s ease; opacity:0; object-fit: contain; pointer-events: auto; -webkit-touch-callout: default; } 
     
     .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 10; color: #fff; cursor: pointer; } 
     .left { left: max(10px, env(safe-area-inset-left)); } .right { right: max(10px, env(safe-area-inset-right)); } 
@@ -111,13 +115,13 @@
   </div>
 
   <div id="lightbox" class="lightbox">
-    <a id="l-download-btn" class="download-action" href="" download>⬇ Download</a>
     <div class="popout-close" onclick="closeLightbox()">✕</div>
     
     <div class="image-stage" id="l-stage">
       <div id="hd-hint" class="hint-banner"></div> 
       <div class="nav-btn left" onclick="navigateInline(-1)">&#10094;</div>
       <img id="l-img" class="main" src="" onload="this.style.opacity=1">
+      <a id="l-download-btn" class="download-action" href="" download>⬇ Download</a>
       <div class="nav-btn right" onclick="navigateInline(1)">&#10095;</div>
     </div>
     
