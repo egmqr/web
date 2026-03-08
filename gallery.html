@@ -53,10 +53,9 @@
     .scrubber-handle { width: 24px; height: 24px; background: #fff; border-radius: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 2px 8px rgba(0,0,0,0.6); pointer-events: none; } 
     .time-bubble { position: absolute; top: -30px; transform: translateX(-50%); background: #333; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
 
-    /* Updated Hint Banner CSS (Moved to top) */
     .hint-banner { 
       position: absolute; 
-      top: 10px; 
+      top: calc(max(40px, env(safe-area-inset-top)) + 60px); 
       left: 50%; 
       transform: translateX(-50%); 
       width: fit-content; 
