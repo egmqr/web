@@ -380,8 +380,11 @@
                     const finalizeHdLoad = () => {
                         imgEl.src = hdUrl;
                         if (!isData) {
-                            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || isIOS;
-                            showHint(isMobile ? "HD photo is loaded. Long press image then Save to Photos" : "HD photo is loaded.", isMobile);
+                            if (isIOS) {
+                                showHint("HD photo is loaded. Long press image then Save to Photos", true);
+                            } else {
+                                showHint("HD photo is loaded. Click Download to save", false);
+                            }
                         }
                     };
 
