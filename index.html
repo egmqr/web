@@ -78,8 +78,8 @@
     // 1. CONFIGURATION
     var BACKEND_URL = "https://script.google.com/macros/s/AKfycbzEUz2hwAYe3V5im0_jExevNjKGKUYzZqkJhVMCOWPy8TpvpYW_oIGYQEvJLbXd0dTQ/exec"; 
     
-    // Note: Pointing to the newly renamed gallery.html
-    var GITHUB_URL = "https://egmqr.github.io/web/gallery.html"; 
+    // Dynamically generate the absolute URL for gallery.html in the same directory
+    var GITHUB_URL = new URL('gallery.html', window.location.href).href; 
 
     // 2. PARSE URL PARAMETERS
     const urlParams = new URLSearchParams(window.location.search);
@@ -91,8 +91,8 @@
     var seenIds = {};
     var isSessionActive = false;
     var pollTimer;
-    var BASE_INTERVAL = 4000;      
-    var MAX_INTERVAL = 30000;      
+    var BASE_INTERVAL = 4000;       
+    var MAX_INTERVAL = 30000;       
     var currentInterval = BASE_INTERVAL;
 
     document.addEventListener("visibilitychange", function() {
