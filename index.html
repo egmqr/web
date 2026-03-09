@@ -3,9 +3,13 @@
 <head>
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+  <link rel="preconnect" href="https://drive.google.com" crossorigin>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    /* [YOUR EXACT CSS - UNCHANGED] */
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { margin: 0; padding: 0; background: #111; color: white; font-family: -apple-system, sans-serif; padding-bottom: 80px; }
     .header { position: sticky; top: 0; background: rgba(17, 17, 17, 0.95); backdrop-filter: blur(10px); padding: 15px; z-index: 100; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
@@ -15,7 +19,21 @@
     .session-btn.active { background: #ea4335; color: white; animation: pulse 2s infinite; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(234, 67, 53, 0); } 100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); } }
     .feed-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 15px; display: flex; flex-direction: column; gap: 20px; }
-    .card { background: #222; border: 1px solid #444; border-radius: 16px; padding: 15px; display: flex; flex-direction: column; gap: 15px; animation: slideIn 0.4s ease-out forwards; }
+    
+    .card { 
+      background: #222; 
+      border: 1px solid #444; 
+      border-radius: 16px; 
+      padding: 15px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 15px; 
+      animation: slideIn 0.4s ease-out forwards; 
+      /* NEW: Huge performance boost for long photographer feeds */
+      content-visibility: auto;
+      contain-intrinsic-size: 200px;
+    }
+    
     .session-card { border: 2px solid #4285f4; transition: all 0.4s ease; }
     .session-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 15px; margin-bottom: 10px; }
     .session-link { text-decoration: none; color: #4285f4; transition: opacity 0.2s; }
@@ -91,8 +109,8 @@
     var seenIds = {};
     var isSessionActive = false;
     var pollTimer;
-    var BASE_INTERVAL = 4000;       
-    var MAX_INTERVAL = 30000;       
+    var BASE_INTERVAL = 4000;        
+    var MAX_INTERVAL = 30000;        
     var currentInterval = BASE_INTERVAL;
 
     document.addEventListener("visibilitychange", function() {
@@ -328,8 +346,9 @@
       
       var singleGalleryUrl = `${GITHUB_URL}?photo=${photo.id}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
       
+      // NEW: Added loading="lazy" and decoding="async"
       var html = `
-        <img class='img-preview' id='img-${photo.id}' src='${previewSrc}'>
+        <img class='img-preview' id='img-${photo.id}' src='${previewSrc}' loading="lazy" decoding="async">
         <div class='controls-col'>
           <div class='controls-row'><input type='text' id='input-${photo.id}' class='name-input' value='${displayName}' placeholder='Filename...'></div>
           <div class='controls-row'>
