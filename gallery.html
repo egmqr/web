@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Client Gallery</title>
+  
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+  <link rel="preconnect" href="https://drive.google.com" crossorigin>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #111; color: white; font-family: -apple-system, sans-serif; }
@@ -24,7 +29,8 @@
     .close-btn { background: transparent; color: #aaa; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #555; font-weight: bold; cursor: pointer; margin-top: 5px; }
 
     .thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 30px; }
-    .thumb-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid #333; background: #222; }
+    /* NEW: content-visibility on grid items saves rendering power */
+    .thumb-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid #333; background: #222; content-visibility: auto; contain-intrinsic-size: 100px; }
     
     .loader-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 60px; gap: 15px; width: 100%; }
     .focus-ring { width: 44px; height: 44px; border: 3px solid rgba(66, 133, 244, 0.15); border-top: 3px solid #4285f4; border-radius: 50%; animation: spin 0.8s cubic-bezier(0.6, 0.2, 0.4, 0.8) infinite; }
@@ -36,13 +42,10 @@
     .lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: #000; z-index: 9999; display: none; flex-direction: column; align-items:center; justify-content:center; overflow:hidden; }
     .popout-close { position: absolute; top: max(40px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); } 
     
-    /* Adjusted download button to be in normal document flow */
     .download-action { margin-top: 15px; height: 44px; padding: 0 25px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 10; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; flex-shrink: 0; }
     
-    /* Adjusted image-stage to leave space at the bottom (200px) for the carousel to prevent overlap with controls */
     .image-stage { position: absolute; top: 0; bottom: 200px; left: 0; right: 0; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; padding-top: 60px; box-sizing: border-box; } 
     
-    /* Adjusted main image sizing to fill available space without stretching */
     img.main { max-width: 90%; max-height: calc(100% - 60px); transition: opacity 0.3s ease; opacity:0; object-fit: contain; pointer-events: auto; -webkit-touch-callout: default; } 
     
     .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 10; color: #fff; cursor: pointer; } 
@@ -120,7 +123,7 @@
     <div class="image-stage" id="l-stage">
       <div id="hd-hint" class="hint-banner"></div> 
       <div class="nav-btn left" onclick="navigateInline(-1)">&#10094;</div>
-      <img id="l-img" class="main" src="" onload="this.style.opacity=1">
+      <img id="l-img" class="main" src="" onload="this.style.opacity=1" decoding="async">
       <a id="l-download-btn" class="download-action" href="" download>⬇ Download</a>
       <div class="nav-btn right" onclick="navigateInline(1)">&#10095;</div>
     </div>
@@ -166,6 +169,20 @@
           setTimeout(() => { if(h.style.opacity === '0') h.innerText = ''; }, 300);
         }, 5000);
       }
+    }
+
+    // NEW: Background preloader to make swiping instantly responsive
+    function preloadNeighbors(index) {
+      if (!window.filteredImages || window.filteredImages.length === 0) return;
+      const preload = (idx) => {
+        if (idx >= 0 && idx < window.filteredImages.length) {
+          let preImg = new Image();
+          let bUrl = window.filteredImages[idx].baseUrl;
+          preImg.src = bUrl.startsWith('data:') ? bUrl : bUrl + '=w1024';
+        }
+      };
+      preload(index + 1);
+      preload(index - 1);
     }
 
     window.onload = function() {
@@ -362,6 +379,9 @@
       const imgEl = document.getElementById('l-img');
       imgEl.onload = null; // Clear immediately to prevent ghost loads from previous cycles
       
+      // Trigger Preloading for smooth navigation
+      preloadNeighbors(idx);
+
       imageLoadTimer = setTimeout(() => {
         if (imgEl.src !== w1024Url && imgEl.src !== hdUrl) {
           imgEl.style.opacity = 0; 
