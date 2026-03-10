@@ -2,7 +2,7 @@
 <html>
 <head>
   <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
   <link rel="preconnect" href="https://script.google.com" crossorigin>
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -11,67 +11,138 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body { margin: 0; padding: 0; background: #111; color: white; font-family: -apple-system, sans-serif; padding-bottom: 80px; }
-    .header { position: sticky; top: 0; background: rgba(17, 17, 17, 0.95); backdrop-filter: blur(10px); padding: 15px; z-index: 100; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-    h2 { margin: 0; font-size: 18px; letter-spacing: 1px; }
-    .session-btn { padding: 8px 16px; border-radius: 20px; border: none; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s; }
+    body { 
+      margin: 0; 
+      padding: 0; 
+      background: #111; 
+      color: white; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      padding-bottom: 80px; 
+    }
+    
+    /* MODIFIED: Header stacked and styled for mobile priority */
+    .header { 
+      position: sticky; 
+      top: 0; 
+      background: rgba(17, 17, 17, 0.95); 
+      backdrop-filter: blur(12px); 
+      -webkit-backdrop-filter: blur(12px);
+      padding: env(safe-area-inset-top, 15px) 15px 15px 15px; 
+      z-index: 100; 
+      border-bottom: 1px solid #333; 
+      display: flex; 
+      flex-direction: column; /* Stack title and buttons */
+      gap: 15px;
+    }
+    h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+    
+    .header-buttons { 
+      display: flex; 
+      gap: 10px; 
+      width: 100%; 
+    }
+    
+    .session-btn { 
+      flex: 1; /* Makes buttons fill the row evenly */
+      padding: 12px 10px; 
+      border-radius: 12px; 
+      border: none; 
+      font-weight: 600; 
+      font-size: 14px; 
+      cursor: pointer; 
+      transition: all 0.2s ease; 
+    }
     .session-btn.idle { background: #4285f4; color: white; }
     .session-btn.active { background: #ea4335; color: white; animation: pulse 2s infinite; }
+    
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(234, 67, 53, 0); } 100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); } }
+    
     .feed-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 15px; display: flex; flex-direction: column; gap: 20px; }
     
     .card { 
-      background: #222; 
-      border: 1px solid #444; 
+      background: #1e1e1e; 
+      border: 1px solid #333; 
       border-radius: 16px; 
       padding: 15px; 
       display: flex; 
       flex-direction: column; 
       gap: 15px; 
       animation: slideIn 0.4s ease-out forwards; 
-      content-visibility: auto;
-      contain-intrinsic-size: 200px;
       transition: opacity 0.3s, transform 0.3s;
     }
     
     @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
     .session-card { border: 2px solid #4285f4; transition: all 0.4s ease; }
-    .session-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 15px; margin-bottom: 10px; }
+    .session-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 10px; }
     .session-link { text-decoration: none; color: #4285f4; transition: opacity 0.2s; }
     .session-link:active { opacity: 0.6; }
-    .session-title { font-size: 18px; font-weight: bold; margin: 0; display: flex; align-items: center; gap: 5px; }
-    .session-title::after { content: '↗'; font-size: 12px; opacity: 0.7; }
+    .session-title { font-size: 20px; font-weight: bold; margin: 0; display: flex; align-items: center; gap: 6px; }
+    .session-title::after { content: '↗'; font-size: 14px; opacity: 0.7; }
+    
     .session-items-container { display: flex; flex-direction: column; gap: 10px; }
-    .photo-row { display: flex; gap: 12px; transition: all 0.3s ease; align-items: center; }
-    .img-preview { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #555; background: #000; flex-shrink: 0; }
-    .controls-col { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
-    .controls-row { display: flex; gap: 8px; width: 100%; }
+    .photo-row { display: flex; gap: 15px; transition: all 0.3s ease; align-items: center; }
     
-    /* Input and Save Btn CSS removed for cleaner UI */
+    /* MODIFIED: Larger Preview */
+    .img-preview { 
+      width: 120px; 
+      height: 120px; 
+      object-fit: cover; 
+      border-radius: 12px; 
+      border: 1px solid #444; 
+      background: #000; 
+      flex-shrink: 0; 
+    }
     
-    .delete-btn { background: #ea4335; color: white; flex-shrink: 0; width: 44px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: width 0.2s ease, background 0.2s; min-height: 44px; padding: 0 10px; display: flex; align-items: center; justify-content: center; position: relative; z-index: 10; } 
-    .save-status { font-size: 11px; height: 14px; font-weight: bold; color: #0f9d58; margin-top: 2px; }
+    /* MODIFIED: Controls column aligns to the right for the delete button */
+    .controls-col { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 8px; 
+      flex-grow: 1; 
+      align-items: flex-end; 
+      justify-content: center;
+    }
+    
+    /* MODIFIED: Delete button is smaller and pill-shaped */
+    .delete-btn { 
+      background: #ea4335; 
+      color: white; 
+      border: none; 
+      border-radius: 20px; 
+      font-weight: 600; 
+      font-size: 13px;
+      cursor: pointer; 
+      transition: background 0.2s; 
+      padding: 10px 18px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+    } 
+    
+    .save-status { font-size: 11px; height: 14px; font-weight: bold; color: #0f9d58; margin-top: 2px; text-align: right; }
+    
     .qr-section { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 5px; padding-top: 15px; border-top: 1px solid #333; }
     .qr-code, .qr-code-large { 
       width: 152px; 
       height: 152px; 
       background: white; 
       padding: 6px; 
-      border-radius: 8px; 
+      border-radius: 12px; 
       display: flex; 
       justify-content: center; 
       align-items: center; 
       cursor: pointer; 
     }
-    .qr-label { font-size: 11px; color: #888; font-weight: bold; letter-spacing: 0.5px; }
-    #status { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 30px; font-size: 12px; display: flex; align-items: center; gap: 8px; z-index: 1000; }
+    .qr-label { font-size: 12px; color: #888; font-weight: 600; letter-spacing: 0.5px; }
+    
+    #status { position: fixed; bottom: env(safe-area-inset-bottom, 20px); left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 10px 24px; border-radius: 30px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 10px; z-index: 1000; }
     .dot { width: 8px; height: 8px; background: #0f9d58; border-radius: 50%; transition: background 0.3s; }
     .dot.scanning { animation: blink 1s infinite; }
     @keyframes blink { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+    
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
     .modal-box { background: #222; border-radius: 20px; padding: 25px; width: 85%; max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-    .header-buttons { display:flex; gap:8px; flex-wrap: wrap; justify-content: flex-end; }
   </style>
 </head>
 <body>
@@ -92,7 +163,7 @@
     <div class="modal-box" onclick="event.stopPropagation()">
       <h3 style="margin:0;">Scan to view</h3>
       <div id="enlarged-qr" style="width:250px; height:250px; background:white; padding:10px; border-radius:12px;"></div>
-      <button class="modal-btn" style="background:#4285f4; color:white; width:100%; padding:15px; border-radius:10px; border:none; font-weight:bold; margin-top:10px;" onclick="closeQR()">Done</button>
+      <button class="modal-btn" style="background:#4285f4; color:white; width:100%; padding:15px; border-radius:12px; border:none; font-weight:bold; font-size:16px; margin-top:10px; cursor:pointer;" onclick="closeQR()">Done</button>
     </div>
   </div>
 
@@ -219,7 +290,7 @@
             <a href="${galleryUrl}" target="_blank" class="session-link">
                <h3 class="session-title">Session ${displayNum}</h3>
             </a>
-            <button class="delete-btn" style="width:auto; padding:5px 12px; font-size:11px; border-radius:15px; background:#cc0000; min-height:30px;" onclick="requestDeleteSession('${sessionNum}', this)">🗑 Delete Session</button>
+            <button class="delete-btn" style="padding:6px 14px; font-size:11px; background:#cc0000;" onclick="requestDeleteSession('${sessionNum}', this)">🗑 Delete Session</button>
           </div>
           <div class="qr-container" style="display:flex; flex-direction:column; align-items:center; gap:5px;">
             <div id="qr-session-${sessionNum}" class="qr-code" onclick="showLargeQR('${galleryUrl}')"></div>
@@ -309,7 +380,6 @@
     function routeCard(photo) {
       var sessionMatch = photo.name.match(/-(s\d{3})(?:\.[a-zA-Z0-9]+)?$/);
       
-      // Handle Asynchronous Auto-Tagging
       if (photo.needsSessionTag) {
         var nameParts = photo.name.split('.');
         var ext = nameParts.length > 1 ? '.' + nameParts.pop() : '';
@@ -322,10 +392,9 @@
       else addSingleCard(photo);
     }
 
-    // New function to whisper back to the server invisibly
     function triggerBackgroundTagging(fileId, sessionStr) {
       var statusEl = document.getElementById('status-' + fileId);
-      if(statusEl) { statusEl.innerText = "Tagging session..."; statusEl.style.color = "#fbbc04"; }
+      if(statusEl) { statusEl.innerText = "Tagging..."; statusEl.style.color = "#fbbc04"; }
       
       fetch(`${BACKEND_URL}?api=autoTagSession&folderId=${TARGET_FOLDER_ID}&fileId=${fileId}&sessionStr=${sessionStr}`)
         .then(res => res.json())
@@ -366,18 +435,14 @@
     }
 
     function generatePhotoHTML(photo) {
-      var displayName = photo.name ? photo.name.replace(/\.[^/.]+$/, "").replace(/-s\d{3}$/, "") : "";
       var cleanUrl = photo.thumbUrl ? photo.thumbUrl.split('=')[0] : "https://drive.google.com/uc?id=" + photo.id; 
       var singleGalleryUrl = `${GITHUB_URL}?photo=${photo.id}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
       
-      // Cleaned up UI: Removed input fields and save buttons
+      // Removed filename, increased image width, right-aligned smaller delete button
       var html = `
-        <img class='img-preview' id='img-${photo.id}' src='${cleanUrl}=w200' loading="lazy">
-        <div class='controls-col' style='justify-content: center;'>
-          <div style='font-size: 14px; font-weight: bold; word-break: break-all; color: white;' id='name-${photo.id}'>${displayName}</div>
-          <div class='controls-row' style='margin-top: auto;'>
-            <button class='delete-btn' style='width: 100%; border-radius: 6px;' onclick='requestDelete("${photo.id}", this)'>🗑 Delete</button>
-          </div>
+        <img class='img-preview' id='img-${photo.id}' src='${cleanUrl}=w400' loading="lazy">
+        <div class='controls-col'>
+          <button class='delete-btn' onclick='requestDelete("${photo.id}", this)'>🗑 Delete</button>
           <div class='save-status' id='status-${photo.id}'></div>
         </div>
       `;
@@ -386,8 +451,14 @@
 
     function requestDelete(fId, btnEl) {
       if (btnEl.innerText !== "Sure?") {
-        btnEl.innerText = "Sure?"; btnEl.style.background = "#880000"; btnEl.style.width = "65px"; 
-        setTimeout(() => { if (btnEl && btnEl.innerText === "Sure?") { btnEl.innerText = "🗑 Delete"; btnEl.style.background = "#ea4335"; btnEl.style.width = "100%"; } }, 4000);
+        btnEl.innerText = "Sure?"; 
+        btnEl.style.background = "#880000"; 
+        setTimeout(() => { 
+          if (btnEl && btnEl.innerText === "Sure?") { 
+            btnEl.innerText = "🗑 Delete"; 
+            btnEl.style.background = "#ea4335"; 
+          } 
+        }, 4000);
         return; 
       }
       
