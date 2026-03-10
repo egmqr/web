@@ -47,9 +47,9 @@
     .img-preview { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #555; background: #000; flex-shrink: 0; }
     .controls-col { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
     .controls-row { display: flex; gap: 8px; width: 100%; }
-    .name-input { flex-grow: 1; padding: 10px 12px; background: #111; border: 1px solid #555; color: white; border-radius: 8px; font-size: 16px; min-width: 0; }
-    .save-btn { background: #0f9d58; color: white; flex-grow: 1; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; padding: 10px; min-height: 44px; position: relative; z-index: 10; } 
-    .save-btn:disabled { background: #333; color: #888; }
+    
+    /* Input and Save Btn CSS removed for cleaner UI */
+    
     .delete-btn { background: #ea4335; color: white; flex-shrink: 0; width: 44px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: width 0.2s ease, background 0.2s; min-height: 44px; padding: 0 10px; display: flex; align-items: center; justify-content: center; position: relative; z-index: 10; } 
     .save-status { font-size: 11px; height: 14px; font-weight: bold; color: #0f9d58; margin-top: 2px; }
     .qr-section { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 5px; padding-top: 15px; border-top: 1px solid #333; }
@@ -308,8 +308,34 @@
     
     function routeCard(photo) {
       var sessionMatch = photo.name.match(/-(s\d{3})(?:\.[a-zA-Z0-9]+)?$/);
-      if (sessionMatch) addSessionItem(photo, sessionMatch[1]);
+      
+      // Handle Asynchronous Auto-Tagging
+      if (photo.needsSessionTag) {
+        var nameParts = photo.name.split('.');
+        var ext = nameParts.length > 1 ? '.' + nameParts.pop() : '';
+        photo.name = nameParts.join('.') + "-" + photo.needsSessionTag + ext; 
+        
+        addSessionItem(photo, photo.needsSessionTag);
+        triggerBackgroundTagging(photo.id, photo.needsSessionTag);
+      } 
+      else if (sessionMatch) addSessionItem(photo, sessionMatch[1]);
       else addSingleCard(photo);
+    }
+
+    // New function to whisper back to the server invisibly
+    function triggerBackgroundTagging(fileId, sessionStr) {
+      var statusEl = document.getElementById('status-' + fileId);
+      if(statusEl) { statusEl.innerText = "Tagging session..."; statusEl.style.color = "#fbbc04"; }
+      
+      fetch(`${BACKEND_URL}?api=autoTagSession&folderId=${TARGET_FOLDER_ID}&fileId=${fileId}&sessionStr=${sessionStr}`)
+        .then(res => res.json())
+        .then(data => {
+          if(statusEl) { 
+            statusEl.innerText = "✓ Tagged"; 
+            statusEl.style.color = "#0f9d58"; 
+            setTimeout(() => { statusEl.innerText = ""; }, 3000); 
+          }
+        });
     }
 
     function addSessionItem(photo, sessionNum) {
@@ -344,13 +370,13 @@
       var cleanUrl = photo.thumbUrl ? photo.thumbUrl.split('=')[0] : "https://drive.google.com/uc?id=" + photo.id; 
       var singleGalleryUrl = `${GITHUB_URL}?photo=${photo.id}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
       
+      // Cleaned up UI: Removed input fields and save buttons
       var html = `
         <img class='img-preview' id='img-${photo.id}' src='${cleanUrl}=w200' loading="lazy">
-        <div class='controls-col'>
-          <div class='controls-row'><input type='text' id='input-${photo.id}' class='name-input' value='${displayName}' placeholder='Filename...'></div>
-          <div class='controls-row'>
-            <button id='btn-${photo.id}' class='save-btn' onclick='updateFileName("${photo.id}")'>SAVE</button>
-            <button class='delete-btn' onclick='requestDelete("${photo.id}", this)'>×</button>
+        <div class='controls-col' style='justify-content: center;'>
+          <div style='font-size: 14px; font-weight: bold; word-break: break-all; color: white;' id='name-${photo.id}'>${displayName}</div>
+          <div class='controls-row' style='margin-top: auto;'>
+            <button class='delete-btn' style='width: 100%; border-radius: 6px;' onclick='requestDelete("${photo.id}", this)'>🗑 Delete</button>
           </div>
           <div class='save-status' id='status-${photo.id}'></div>
         </div>
@@ -358,48 +384,26 @@
       return { html: html, singleGalleryUrl: singleGalleryUrl };
     }
 
-    function updateFileName(fileId) {
-      var btnEl = document.getElementById('btn-' + fileId);
-      var statusEl = document.getElementById('status-' + fileId);
-      var newName = document.getElementById('input-' + fileId).value;
-      
-      btnEl.disabled = true; btnEl.innerText = "...";
-      statusEl.innerText = "Syncing..."; statusEl.style.color = "#4285f4";
-
-      fetch(`${BACKEND_URL}?api=rename&folderId=${TARGET_FOLDER_ID}&fileId=${fileId}&newName=${encodeURIComponent(newName)}`)
-        .then(res => res.json())
-        .then(data => {
-          btnEl.disabled = false; btnEl.innerText = "SAVE";
-          if(data.result === "Success") {
-            statusEl.innerText = "✓ SAVED"; statusEl.style.color = "#0f9d58";
-            setTimeout(() => { statusEl.innerText = ""; }, 3000);
-          }
-        });
-    }
-
-    // FIX: Optimistic UI for instant sync and zombie prevention
     function requestDelete(fId, btnEl) {
       if (btnEl.innerText !== "Sure?") {
         btnEl.innerText = "Sure?"; btnEl.style.background = "#880000"; btnEl.style.width = "65px"; 
-        setTimeout(() => { if (btnEl && btnEl.innerText === "Sure?") { btnEl.innerText = "×"; btnEl.style.background = "#ea4335"; btnEl.style.width = "44px"; } }, 4000);
+        setTimeout(() => { if (btnEl && btnEl.innerText === "Sure?") { btnEl.innerText = "🗑 Delete"; btnEl.style.background = "#ea4335"; btnEl.style.width = "100%"; } }, 4000);
         return; 
       }
       
-      // OPTIMISTIC UI: Instantly vanish and blacklist the ID so it doesn't reappear
       var itemRow = document.getElementById('item-' + fId);
       if (itemRow) {
         itemRow.style.opacity = "0";
         itemRow.style.transform = "scale(0.9)";
         setTimeout(() => itemRow.remove(), 300);
       }
-      seenIds[fId] = "DELETED"; // Mark blacklisted so polling ignores it
+      seenIds[fId] = "DELETED"; 
 
       fetch(`${BACKEND_URL}?api=delete&folderId=${TARGET_FOLDER_ID}&fileId=${fId}`)
         .then(res => res.json())
         .catch(err => console.error("Deletion failed:", err));
     }
 
-    // FIX: Optimistic UI for session deletion
     function requestDeleteSession(sessionNum, btnEl) {
       if (btnEl.innerText !== "Are you sure? (Deletes ALL photos)") {
         var oldText = btnEl.innerText;
@@ -408,7 +412,6 @@
         return;
       }
       
-      // OPTIMISTIC UI: Instantly remove session card
       var card = document.getElementById('session-card-' + sessionNum);
       if (card) {
         card.style.opacity = "0";
@@ -419,7 +422,6 @@
       fetch(`${BACKEND_URL}?api=deleteSession&folderId=${TARGET_FOLDER_ID}&sessionStr=${sessionNum}`)
         .then(res => res.json())
         .then(() => {
-          // Restart to ensure state is clean and polling resumes
           clearTimeout(pollTimer); 
           start();
         });
