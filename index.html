@@ -29,7 +29,6 @@
       flex-direction: column; 
       gap: 15px; 
       animation: slideIn 0.4s ease-out forwards; 
-      /* NEW: Huge performance boost for long photographer feeds */
       content-visibility: auto;
       contain-intrinsic-size: 200px;
     }
@@ -64,18 +63,20 @@
     }
     .qr-label { font-size: 11px; color: #888; font-weight: bold; letter-spacing: 0.5px; }
     #status { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 30px; font-size: 12px; display: flex; align-items: center; gap: 8px; z-index: 1000; }
-    .dot { width: 8px; height: 8px; background: #0f9d58; border-radius: 50%; }
+    .dot { width: 8px; height: 8px; background: #0f9d58; border-radius: 50%; transition: background 0.3s; }
     .dot.scanning { animation: blink 1s infinite; }
     @keyframes blink { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
     .modal-box { background: #222; border-radius: 20px; padding: 25px; width: 85%; max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+    .header-buttons { display:flex; gap:8px; flex-wrap: wrap; justify-content: flex-end; }
   </style>
 </head>
 <body>
 
   <div class="header">
     <h2 id="boothHeader">Booth Feed</h2>
-    <div style="display:flex; gap:10px;">
+    <div class="header-buttons">
+      <button id="pauseBtn" class="session-btn idle" style="background:#fbbc04; color:#000;" onclick="togglePause()">⏸ Pause</button>
       <button id="syncBtn" class="session-btn idle" style="background:#444;" onclick="manualSync()">🔄 Sync</button>
       <button id="sessionToggle" class="session-btn idle" onclick="toggleSession()">Start Session</button>
     </div>
@@ -95,8 +96,6 @@
   <script>
     // 1. CONFIGURATION
     var BACKEND_URL = "https://script.google.com/macros/s/AKfycbzEUz2hwAYe3V5im0_jExevNjKGKUYzZqkJhVMCOWPy8TpvpYW_oIGYQEvJLbXd0dTQ/exec"; 
-    
-    // Dynamically generate the absolute URL for gallery.html in the same directory
     var GITHUB_URL = new URL('gallery.html', window.location.href).href; 
 
     // 2. PARSE URL PARAMETERS
@@ -108,13 +107,27 @@
 
     var seenIds = {};
     var isSessionActive = false;
+    var isPaused = false; 
     var pollTimer;
     
-    // --- UPDATED INTERVAL LOGIC ---
-    var BASE_INTERVAL = 2000;         // Quick 2-second check base
-    var MAX_ACTIVE_INTERVAL = 5000;   // Never wait more than 5s during a session
-    var MAX_IDLE_INTERVAL = 15000;    // Wait up to 15s if no session is active
+    var BASE_INTERVAL = 2000;         
+    var MAX_ACTIVE_INTERVAL = 5000;   
+    var MAX_IDLE_INTERVAL = 15000;    
     var currentInterval = BASE_INTERVAL;
+
+    // --- NEW: INACTIVITY TRACKING LOGIC ---
+    var INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes in milliseconds
+    var lastActivityTime = Date.now();
+
+    function resetActivityTimer() {
+      lastActivityTime = Date.now();
+    }
+
+    // Listen for physical interactions on the tablet/device
+    window.addEventListener('touchstart', resetActivityTimer, { passive: true });
+    window.addEventListener('mousemove', resetActivityTimer, { passive: true });
+    window.addEventListener('click', resetActivityTimer, { passive: true });
+    window.addEventListener('keydown', resetActivityTimer, { passive: true });
 
     document.addEventListener("visibilitychange", function() {
       if (document.hidden) {
@@ -122,8 +135,16 @@
         document.getElementById('status-text').innerText = "Paused (Background)";
         document.getElementById('status-dot').classList.remove('scanning');
       } else {
-        currentInterval = BASE_INTERVAL; 
-        checkDrive();
+        if (!isPaused) {
+          resetActivityTimer(); // Coming back to tab counts as activity
+          currentInterval = BASE_INTERVAL; 
+          checkDrive();
+        } else {
+          // If we are coming back and it's paused, keep the existing pause message
+          if(document.getElementById('status-text').innerText.indexOf("Auto") === -1) {
+            document.getElementById('status-text').innerText = "Paused (Manual)";
+          }
+        }
       }
     });
 
@@ -134,7 +155,6 @@
         return;
       }
       
-      // 1. Fire the session state check
       fetch(`${BACKEND_URL}?api=getSessionState&folderId=${TARGET_FOLDER_ID}`)
         .then(res => res.json())
         .then(state => {
@@ -143,8 +163,33 @@
         })
         .catch(err => console.error("Error starting app:", err));
 
-      // 2. Fire the photo fetch IMMEDIATELY (Do not wait for the session check!)
       checkDrive(); 
+    }
+
+    // Updated togglePause to accept an optional autoPause parameter
+    function togglePause(isAutoPause = false) {
+      isPaused = !isPaused;
+      var btn = document.getElementById('pauseBtn');
+      var dot = document.getElementById('status-dot');
+      var text = document.getElementById('status-text');
+
+      if (isPaused) {
+        clearTimeout(pollTimer);
+        btn.innerText = "▶ Resume";
+        btn.style.background = "#34a853"; 
+        btn.style.color = "white";
+        text.innerText = isAutoPause ? "Paused (Auto - 30m Inactive)" : "Paused (Manual)";
+        dot.classList.remove('scanning');
+        dot.style.background = "#fbbc04"; 
+      } else {
+        btn.innerText = "⏸ Pause";
+        btn.style.background = "#fbbc04";
+        btn.style.color = "#000";
+        dot.style.background = "#0f9d58";
+        resetActivityTimer(); // Reset timer upon unpausing
+        currentInterval = BASE_INTERVAL;
+        checkDrive();
+      }
     }
     
     function toggleSession() {
@@ -165,6 +210,7 @@
           
           if (isSessionActive && data.sessionNum) {
             createSessionCard(data.sessionNum);
+            if (isPaused) togglePause();
           }
         });
     }
@@ -197,7 +243,6 @@
       `;
       
       feed.insertBefore(div, feed.firstChild);
-      // Update the width and height values to 140
       new QRCode(document.getElementById("qr-session-" + sessionNum), { 
         text: galleryUrl, 
         width: 140, 
@@ -218,6 +263,11 @@
     }
     
     function manualSync() {
+      if (isPaused) {
+        togglePause();
+        return;
+      }
+      
       var btn = document.getElementById('syncBtn');
       btn.innerText = "⏳ Syncing";
       clearTimeout(pollTimer);
@@ -227,7 +277,13 @@
     }
 
     function checkDrive() {
-      if (document.hidden || !TARGET_FOLDER_ID) return; 
+      if (document.hidden || !TARGET_FOLDER_ID || isPaused) return; 
+
+      // NEW: Check if we have exceeded the 30-minute inactivity limit
+      if (Date.now() - lastActivityTime > INACTIVITY_LIMIT) {
+        togglePause(true); // Call togglePause and flag it as an Auto-Pause
+        return;
+      }
       
       document.getElementById('status-dot').classList.add('scanning');
       document.getElementById('status-text').innerText = "Syncing...";
@@ -239,6 +295,8 @@
     }
     
     function onSuccess(photos) {
+      if (isPaused) return;
+
       document.getElementById('status-dot').classList.remove('scanning');
       document.getElementById('status-text').innerText = "Listening...";
       
@@ -262,9 +320,9 @@
         }
       }
       
-      // --- UPDATED BACKOFF LOGIC ---
       if (foundNewPhotos) {
         currentInterval = BASE_INTERVAL;
+        resetActivityTimer(); // NEW: A fresh photo resets the inactivity timer!
       } else {
         if (isSessionActive) {
           currentInterval = Math.min(currentInterval + 1000, MAX_ACTIVE_INTERVAL); 
@@ -278,10 +336,10 @@
     }
     
     function onFailure(e) { 
+      if (isPaused) return;
       document.getElementById('status-dot').classList.remove('scanning');
       document.getElementById('status-text').innerText = "Retrying connection...";
       clearTimeout(pollTimer);
-      // Changed from 10000 to 5000 for quicker error recovery
       pollTimer = setTimeout(checkDrive, 5000);
     }
     
@@ -338,7 +396,6 @@
       cardDiv.innerHTML = contentHtml;
       feed.insertBefore(cardDiv, feed.firstChild); 
       
-     // Update the width and height values to 140
       new QRCode(document.getElementById("qr-" + photo.id), { 
         text: itemData.singleGalleryUrl, 
         width: 140, 
@@ -354,7 +411,6 @@
       
       var singleGalleryUrl = `${GITHUB_URL}?photo=${photo.id}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
       
-      // Added loading="lazy" and decoding="async"
       var html = `
         <img class='img-preview' id='img-${photo.id}' src='${previewSrc}' loading="lazy" decoding="async">
         <div class='controls-col'>
