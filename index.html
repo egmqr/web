@@ -31,8 +31,11 @@
       animation: slideIn 0.4s ease-out forwards; 
       content-visibility: auto;
       contain-intrinsic-size: 200px;
+      transition: opacity 0.3s, transform 0.3s;
     }
     
+    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
     .session-card { border: 2px solid #4285f4; transition: all 0.4s ease; }
     .session-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 15px; margin-bottom: 10px; }
     .session-link { text-decoration: none; color: #4285f4; transition: opacity 0.2s; }
@@ -115,15 +118,11 @@
     var MAX_IDLE_INTERVAL = 15000;    
     var currentInterval = BASE_INTERVAL;
 
-    // --- NEW: INACTIVITY TRACKING LOGIC ---
-    var INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes in milliseconds
+    var INACTIVITY_LIMIT = 30 * 60 * 1000; 
     var lastActivityTime = Date.now();
 
-    function resetActivityTimer() {
-      lastActivityTime = Date.now();
-    }
+    function resetActivityTimer() { lastActivityTime = Date.now(); }
 
-    // Listen for physical interactions on the tablet/device
     window.addEventListener('touchstart', resetActivityTimer, { passive: true });
     window.addEventListener('mousemove', resetActivityTimer, { passive: true });
     window.addEventListener('click', resetActivityTimer, { passive: true });
@@ -136,22 +135,16 @@
         document.getElementById('status-dot').classList.remove('scanning');
       } else {
         if (!isPaused) {
-          resetActivityTimer(); // Coming back to tab counts as activity
+          resetActivityTimer(); 
           currentInterval = BASE_INTERVAL; 
           checkDrive();
-        } else {
-          // If we are coming back and it's paused, keep the existing pause message
-          if(document.getElementById('status-text').innerText.indexOf("Auto") === -1) {
-            document.getElementById('status-text').innerText = "Paused (Manual)";
-          }
         }
       }
     });
 
     function start() { 
       if (!TARGET_FOLDER_ID) {
-        document.getElementById('status-text').innerText = "Error: Missing Folder ID in URL.";
-        document.getElementById('status-dot').style.background = "#ea4335";
+        document.getElementById('status-text').innerText = "Error: Missing Folder ID.";
         return;
       }
       
@@ -161,12 +154,9 @@
           isSessionActive = state.isActive;
           updateSessionUI();
         })
-        .catch(err => console.error("Error starting app:", err));
-
-      checkDrive(); 
+        .finally(() => checkDrive());
     }
 
-    // Updated togglePause to accept an optional autoPause parameter
     function togglePause(isAutoPause = false) {
       isPaused = !isPaused;
       var btn = document.getElementById('pauseBtn');
@@ -186,7 +176,7 @@
         btn.style.background = "#fbbc04";
         btn.style.color = "#000";
         dot.style.background = "#0f9d58";
-        resetActivityTimer(); // Reset timer upon unpausing
+        resetActivityTimer(); 
         currentInterval = BASE_INTERVAL;
         checkDrive();
       }
@@ -198,16 +188,13 @@
       
       btn.disabled = true;
       btn.innerText = starting ? "Starting..." : "Ending...";
-      btn.style.opacity = "0.7"; 
       
       fetch(`${BACKEND_URL}?api=toggleSession&folderId=${TARGET_FOLDER_ID}&isStarting=${starting}`)
         .then(res => res.json())
         .then(data => {
           btn.disabled = false;
-          btn.style.opacity = "1";
           isSessionActive = starting;
           updateSessionUI();
-          
           if (isSessionActive && data.sessionNum) {
             createSessionCard(data.sessionNum);
             if (isPaused) togglePause();
@@ -243,45 +230,30 @@
       `;
       
       feed.insertBefore(div, feed.firstChild);
-      new QRCode(document.getElementById("qr-session-" + sessionNum), { 
-        text: galleryUrl, 
-        width: 140, 
-        height: 140, 
-        correctLevel: QRCode.CorrectLevel.L 
-      });
+      new QRCode(document.getElementById("qr-session-" + sessionNum), { text: galleryUrl, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.L });
     }
 
     function updateSessionUI() {
       var btn = document.getElementById('sessionToggle');
-      if (isSessionActive) {
-        btn.className = "session-btn active";
-        btn.innerText = "End Session";
-      } else {
-        btn.className = "session-btn idle";
-        btn.innerText = "Start Session";
-      }
+      btn.className = isSessionActive ? "session-btn active" : "session-btn idle";
+      btn.innerText = isSessionActive ? "End Session" : "Start Session";
     }
     
     function manualSync() {
-      if (isPaused) {
-        togglePause();
-        return;
-      }
-      
+      if (isPaused) { togglePause(); return; }
       var btn = document.getElementById('syncBtn');
       btn.innerText = "⏳ Syncing";
       clearTimeout(pollTimer);
       currentInterval = BASE_INTERVAL; 
       checkDrive();
-      setTimeout(function() { btn.innerText = "🔄 Sync"; }, 1500); 
+      setTimeout(() => { btn.innerText = "🔄 Sync"; }, 1500); 
     }
 
     function checkDrive() {
       if (document.hidden || !TARGET_FOLDER_ID || isPaused) return; 
 
-      // NEW: Check if we have exceeded the 30-minute inactivity limit
       if (Date.now() - lastActivityTime > INACTIVITY_LIMIT) {
-        togglePause(true); // Call togglePause and flag it as an Auto-Pause
+        togglePause(true); 
         return;
       }
       
@@ -296,12 +268,10 @@
     
     function onSuccess(photos) {
       if (isPaused) return;
-
       document.getElementById('status-dot').classList.remove('scanning');
       document.getElementById('status-text').innerText = "Listening...";
       
       var foundNewPhotos = false;
-      
       if (photos && photos.length > 0) {
         var newPhotos = [];
         for (var i = 0; i < photos.length; i++) {
@@ -311,24 +281,17 @@
             foundNewPhotos = true;
           }
         }
-        
         if (newPhotos.length > 0) {
-          newPhotos.sort(function(a, b) {
-            return new Date(a.createdTime).getTime() - new Date(b.createdTime).getTime();
-          });
-          newPhotos.forEach(function(p) { routeCard(p); });
+          newPhotos.sort((a, b) => new Date(a.createdTime).getTime() - new Date(b.createdTime).getTime());
+          newPhotos.forEach(p => routeCard(p));
         }
       }
       
       if (foundNewPhotos) {
         currentInterval = BASE_INTERVAL;
-        resetActivityTimer(); // NEW: A fresh photo resets the inactivity timer!
+        resetActivityTimer(); 
       } else {
-        if (isSessionActive) {
-          currentInterval = Math.min(currentInterval + 1000, MAX_ACTIVE_INTERVAL); 
-        } else {
-          currentInterval = Math.min(currentInterval + 2000, MAX_IDLE_INTERVAL); 
-        }
+        currentInterval = isSessionActive ? Math.min(currentInterval + 1000, MAX_ACTIVE_INTERVAL) : Math.min(currentInterval + 2000, MAX_IDLE_INTERVAL);
       }
       
       clearTimeout(pollTimer);
@@ -338,41 +301,29 @@
     function onFailure(e) { 
       if (isPaused) return;
       document.getElementById('status-dot').classList.remove('scanning');
-      document.getElementById('status-text').innerText = "Retrying connection...";
+      document.getElementById('status-text').innerText = "Retrying...";
       clearTimeout(pollTimer);
       pollTimer = setTimeout(checkDrive, 5000);
     }
     
     function routeCard(photo) {
       var sessionMatch = photo.name.match(/-(s\d{3})(?:\.[a-zA-Z0-9]+)?$/);
-      if (sessionMatch) {
-        addSessionItem(photo, sessionMatch[1]);
-      } else {
-        addSingleCard(photo);
-      }
+      if (sessionMatch) addSessionItem(photo, sessionMatch[1]);
+      else addSingleCard(photo);
     }
 
     function addSessionItem(photo, sessionNum) {
       var cardId = "session-card-" + sessionNum;
       var sessionCard = document.getElementById(cardId);
-
-      if (!sessionCard) {
-        createSessionCard(sessionNum);
-      } else {
-        var feed = document.getElementById('feed');
-        feed.insertBefore(sessionCard, feed.firstChild);
-      }
+      if (!sessionCard) createSessionCard(sessionNum);
+      else document.getElementById('feed').insertBefore(sessionCard, document.getElementById('feed').firstChild);
 
       var itemData = generatePhotoHTML(photo);
       var itemRow = document.createElement('div');
       itemRow.className = "photo-row";
       itemRow.id = "item-" + photo.id;
-      
       itemRow.style.paddingBottom = "15px";
       itemRow.style.borderBottom = "1px solid #333";
-      itemRow.style.borderRadius = "0";
-      itemRow.style.background = "transparent";
-      
       itemRow.innerHTML = itemData.html;
       document.getElementById('container-' + sessionNum).prepend(itemRow);
     }
@@ -380,39 +331,21 @@
     function addSingleCard(photo) {
       var feed = document.getElementById('feed');
       var itemData = generatePhotoHTML(photo);
-      
       var cardDiv = document.createElement('div');
       cardDiv.className = "card";
       cardDiv.id = "item-" + photo.id; 
-      
-      var contentHtml = `<div class="photo-row" style="background:transparent; padding:0; border:none;">${itemData.html}</div>`;
-      contentHtml += `
-        <div class="qr-section">
-          <div id='qr-${photo.id}' class='qr-code-large' onclick='showLargeQR("${itemData.singleGalleryUrl}")'></div>
-          <span class="qr-label">CLIENT VIEW</span>
-        </div>
-      `;
-      
-      cardDiv.innerHTML = contentHtml;
+      cardDiv.innerHTML = `<div class="photo-row" style="padding:0; border:none;">${itemData.html}</div><div class="qr-section"><div id='qr-${photo.id}' class='qr-code-large' onclick='showLargeQR("${itemData.singleGalleryUrl}")'></div><span class="qr-label">CLIENT VIEW</span></div>`;
       feed.insertBefore(cardDiv, feed.firstChild); 
-      
-      new QRCode(document.getElementById("qr-" + photo.id), { 
-        text: itemData.singleGalleryUrl, 
-        width: 140, 
-        height: 140, 
-        correctLevel: QRCode.CorrectLevel.L 
-      });
+      new QRCode(document.getElementById("qr-" + photo.id), { text: itemData.singleGalleryUrl, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.L });
     }
 
     function generatePhotoHTML(photo) {
       var displayName = photo.name ? photo.name.replace(/\.[^/.]+$/, "").replace(/-s\d{3}$/, "") : "";
       var cleanUrl = photo.thumbUrl ? photo.thumbUrl.split('=')[0] : "https://drive.google.com/uc?id=" + photo.id; 
-      var previewSrc = cleanUrl + '=w200';
-      
       var singleGalleryUrl = `${GITHUB_URL}?photo=${photo.id}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
       
       var html = `
-        <img class='img-preview' id='img-${photo.id}' src='${previewSrc}' loading="lazy" decoding="async">
+        <img class='img-preview' id='img-${photo.id}' src='${cleanUrl}=w200' loading="lazy">
         <div class='controls-col'>
           <div class='controls-row'><input type='text' id='input-${photo.id}' class='name-input' value='${displayName}' placeholder='Filename...'></div>
           <div class='controls-row'>
@@ -426,121 +359,69 @@
     }
 
     function updateFileName(fileId) {
-      var inputEl = document.getElementById('input-' + fileId);
       var btnEl = document.getElementById('btn-' + fileId);
       var statusEl = document.getElementById('status-' + fileId);
-      var newName = inputEl.value;
+      var newName = document.getElementById('input-' + fileId).value;
       
-      btnEl.disabled = true;
-      btnEl.innerText = "...";
-      statusEl.innerText = "Syncing with Drive..."; 
-      statusEl.style.color = "#4285f4";
+      btnEl.disabled = true; btnEl.innerText = "...";
+      statusEl.innerText = "Syncing..."; statusEl.style.color = "#4285f4";
 
       fetch(`${BACKEND_URL}?api=rename&folderId=${TARGET_FOLDER_ID}&fileId=${fileId}&newName=${encodeURIComponent(newName)}`)
         .then(res => res.json())
         .then(data => {
-          btnEl.disabled = false;
-          btnEl.innerText = "SAVE";
+          btnEl.disabled = false; btnEl.innerText = "SAVE";
           if(data.result === "Success") {
-            statusEl.innerText = "✓ FILENAME SAVED";
-            statusEl.style.color = "#0f9d58";
-            setTimeout(function() { statusEl.innerText = ""; }, 3000);
-          } else {
-            statusEl.innerText = "Error Saving!";
-            statusEl.style.color = "#ea4335";
+            statusEl.innerText = "✓ SAVED"; statusEl.style.color = "#0f9d58";
+            setTimeout(() => { statusEl.innerText = ""; }, 3000);
           }
         });
     }
 
+    // FIX: Optimistic UI for instant sync and zombie prevention
     function requestDelete(fId, btnEl) {
       if (btnEl.innerText !== "Sure?") {
-        btnEl.innerText = "Sure?";
-        btnEl.style.background = "#880000";
-        btnEl.style.width = "65px"; 
-        
-        setTimeout(function() {
-          if (btnEl && btnEl.innerText === "Sure?") {
-            btnEl.innerText = "×";
-            btnEl.style.background = "#ea4335";
-            btnEl.style.width = "44px"; 
-          }
-        }, 4000);
+        btnEl.innerText = "Sure?"; btnEl.style.background = "#880000"; btnEl.style.width = "65px"; 
+        setTimeout(() => { if (btnEl && btnEl.innerText === "Sure?") { btnEl.innerText = "×"; btnEl.style.background = "#ea4335"; btnEl.style.width = "44px"; } }, 4000);
         return; 
       }
       
+      // OPTIMISTIC UI: Instantly vanish and blacklist the ID so it doesn't reappear
       var itemRow = document.getElementById('item-' + fId);
-      var statusEl = document.getElementById('status-' + fId);
-      
-      btnEl.innerText = "...";
-      if (statusEl) {
-        statusEl.innerText = "Deleting from Drive...";
-        statusEl.style.color = "#ea4335";
+      if (itemRow) {
+        itemRow.style.opacity = "0";
+        itemRow.style.transform = "scale(0.9)";
+        setTimeout(() => itemRow.remove(), 300);
       }
+      seenIds[fId] = "DELETED"; // Mark blacklisted so polling ignores it
 
       fetch(`${BACKEND_URL}?api=delete&folderId=${TARGET_FOLDER_ID}&fileId=${fId}`)
         .then(res => res.json())
-        .then(data => {
-          if(data.result === "Success") {
-            if (itemRow) {
-              itemRow.style.opacity = "0";
-              itemRow.style.transform = "scale(0.95)";
-              setTimeout(function() { itemRow.remove(); }, 300);
-            }
-            seenIds[fId] = "deleted"; 
-          } else {
-            if (statusEl) { statusEl.innerText = "Error Deleting!"; statusEl.style.color = "#ea4335"; }
-            btnEl.innerText = "×";
-            btnEl.style.background = "#ea4335";
-            btnEl.style.width = "44px";
-          }
-        });
+        .catch(err => console.error("Deletion failed:", err));
     }
 
+    // FIX: Optimistic UI for session deletion
     function requestDeleteSession(sessionNum, btnEl) {
       if (btnEl.innerText !== "Are you sure? (Deletes ALL photos)") {
         var oldText = btnEl.innerText;
-        btnEl.innerText = "Are you sure? (Deletes ALL photos)";
-        btnEl.style.background = "#880000";
-        
-        setTimeout(function() {
-          if (btnEl && btnEl.innerText === "Are you sure? (Deletes ALL photos)") {
-            btnEl.innerText = oldText;
-            btnEl.style.background = "#cc0000";
-          }
-        }, 5000);
+        btnEl.innerText = "Are you sure? (Deletes ALL photos)"; btnEl.style.background = "#880000";
+        setTimeout(() => { if (btnEl && btnEl.innerText === "Are you sure? (Deletes ALL photos)") { btnEl.innerText = oldText; btnEl.style.background = "#cc0000"; } }, 5000);
         return;
       }
       
+      // OPTIMISTIC UI: Instantly remove session card
       var card = document.getElementById('session-card-' + sessionNum);
       if (card) {
-        card.style.opacity = "0.5";
-        card.style.pointerEvents = "none";
+        card.style.opacity = "0";
+        card.style.transform = "scale(0.95)";
+        setTimeout(() => card.remove(), 400);
       }
-      
-      document.getElementById('status-dot').classList.add('scanning');
-      document.getElementById('status-text').innerText = "Trashing session files...";
       
       fetch(`${BACKEND_URL}?api=deleteSession&folderId=${TARGET_FOLDER_ID}&sessionStr=${sessionNum}`)
         .then(res => res.json())
-        .then(data => {
-          document.getElementById('status-dot').classList.remove('scanning');
-          document.getElementById('status-text').innerText = "Listening...";
-          
-          if(data.result === "Success") {
-            if (card) {
-              card.style.transform = "scale(0.9)";
-              card.style.opacity = "0";
-              setTimeout(function() { card.remove(); }, 400);
-            }
-            clearTimeout(pollTimer); 
-            start();
-          } else {
-            alert("Failed to delete session: " + data.result);
-            if (card) {
-               card.style.opacity = "1";
-               card.style.pointerEvents = "auto";
-            }
-          }
+        .then(() => {
+          // Restart to ensure state is clean and polling resumes
+          clearTimeout(pollTimer); 
+          start();
         });
     }
 
@@ -552,7 +433,7 @@
     }
     
     function closeQR() { document.getElementById('qrModal').style.display = 'none'; }
-    window.onload = function() { setTimeout(start, 500); };
+    window.onload = () => setTimeout(start, 500);
   </script>
 </body>
 </html>
