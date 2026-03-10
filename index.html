@@ -109,8 +109,11 @@
     var seenIds = {};
     var isSessionActive = false;
     var pollTimer;
-    var BASE_INTERVAL = 4000;        
-    var MAX_INTERVAL = 30000;        
+    
+    // --- UPDATED INTERVAL LOGIC ---
+    var BASE_INTERVAL = 2000;         // Quick 2-second check base
+    var MAX_ACTIVE_INTERVAL = 5000;   // Never wait more than 5s during a session
+    var MAX_IDLE_INTERVAL = 15000;    // Wait up to 15s if no session is active
     var currentInterval = BASE_INTERVAL;
 
     document.addEventListener("visibilitychange", function() {
@@ -259,11 +262,15 @@
         }
       }
       
+      // --- UPDATED BACKOFF LOGIC ---
       if (foundNewPhotos) {
         currentInterval = BASE_INTERVAL;
       } else {
-        var increment = isSessionActive ? 2000 : 5000; 
-        currentInterval = Math.min(currentInterval + increment, MAX_INTERVAL);
+        if (isSessionActive) {
+          currentInterval = Math.min(currentInterval + 1000, MAX_ACTIVE_INTERVAL); 
+        } else {
+          currentInterval = Math.min(currentInterval + 2000, MAX_IDLE_INTERVAL); 
+        }
       }
       
       clearTimeout(pollTimer);
@@ -274,7 +281,8 @@
       document.getElementById('status-dot').classList.remove('scanning');
       document.getElementById('status-text').innerText = "Retrying connection...";
       clearTimeout(pollTimer);
-      pollTimer = setTimeout(checkDrive, 10000);
+      // Changed from 10000 to 5000 for quicker error recovery
+      pollTimer = setTimeout(checkDrive, 5000);
     }
     
     function routeCard(photo) {
@@ -346,7 +354,7 @@
       
       var singleGalleryUrl = `${GITHUB_URL}?photo=${photo.id}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
       
-      // NEW: Added loading="lazy" and decoding="async"
+      // Added loading="lazy" and decoding="async"
       var html = `
         <img class='img-preview' id='img-${photo.id}' src='${previewSrc}' loading="lazy" decoding="async">
         <div class='controls-col'>
