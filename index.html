@@ -425,13 +425,33 @@
 
     function addSingleCard(photo) {
       var feed = document.getElementById('feed');
-      var itemData = generatePhotoHTML(photo);
+      var cleanUrl = photo.thumbUrl ? photo.thumbUrl.split('=')[0] : "https://drive.google.com/uc?id=" + photo.id; 
+      var singleGalleryUrl = `${GITHUB_URL}?photo=${photo.id}&folderId=${TARGET_FOLDER_ID}&backend=${encodeURIComponent(BACKEND_URL)}`;
+      
       var cardDiv = document.createElement('div');
       cardDiv.className = "card";
       cardDiv.id = "item-" + photo.id; 
-      cardDiv.innerHTML = `<div class="photo-row" style="padding:0; border:none;">${itemData.html}</div><div class="qr-section"><div id='qr-${photo.id}' class='qr-code-large' onclick='showLargeQR("${itemData.singleGalleryUrl}")'></div><span class="qr-label">CLIENT VIEW</span></div>`;
+      
+      // Slick 2-column layout specifically for single cards
+      cardDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-around; align-items: center; padding: 5px 0;">
+          
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+            <img class="img-preview" id="img-${photo.id}" src="${cleanUrl}=w400" loading="lazy" style="width: 135px; height: 135px; margin: 0;">
+            <button class="delete-btn" style="width: 135px; padding: 10px 0; border-radius: 12px;" onclick="requestDelete('${photo.id}', this)">🗑 Delete</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <div id="qr-${photo.id}" class="qr-code-large" onclick="showLargeQR('${singleGalleryUrl}')" style="width: 135px; height: 135px; padding: 8px;"></div>
+            <span class="qr-label">CLIENT VIEW</span>
+          </div>
+
+        </div>
+      `;
       feed.insertBefore(cardDiv, feed.firstChild); 
-      new QRCode(document.getElementById("qr-" + photo.id), { text: itemData.singleGalleryUrl, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.L });
+      
+      // Calculate exact QR size (135px container - 16px padding = 119px QR)
+      new QRCode(document.getElementById("qr-" + photo.id), { text: singleGalleryUrl, width: 119, height: 119, correctLevel: QRCode.CorrectLevel.L });
     }
 
     function generatePhotoHTML(photo) {
