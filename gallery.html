@@ -12,7 +12,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #111; color: white; font-family: -apple-system, sans-serif; }
-    
+    .content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
     .landing-page { padding: 20px; text-align: center; max-width: 800px; margin: 0 auto; }
     
     .header-container { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 25px; }
@@ -60,7 +67,7 @@
     .scrubber-handle { width: 24px; height: 24px; background: #fff; border-radius: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 2px 8px rgba(0,0,0,0.6); pointer-events: none; } 
     .time-bubble { position: absolute; top: -30px; transform: translateX(-50%); background: #333; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
 /* 🚨 FIX: New styling for the relocated download button */
-    .download-btn { display: none; background: rgba(255, 255, 255, 0.15); color: white; padding: 6px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); font-size: 13px; transition: background 0.2s; backdrop-filter: blur(5px); margin-bottom: 5px; }
+.download-btn { display: none; background: rgba(255, 255, 255, 0.15); color: white; padding: 6px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); font-size: 13px; transition: background 0.2s; backdrop-filter: blur(5px); margin: 15px auto 5px auto; }
     .download-btn:active { background: rgba(255,255,255,0.3); }
     .hint-banner { 
       position: absolute; 
