@@ -200,7 +200,12 @@
         }
         fetchUrl = `${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}&folderId=${FOLDER_ID}`;
       } else if (PHOTO_ID) {
-        fetchUrl = `${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}`;
+        if (!FOLDER_ID) {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
+            return;
+        }
+        // ✅ THE FIX: Attach the folderId to the API request!
+        fetchUrl = `${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}&folderId=${FOLDER_ID}`;
         document.querySelector('.share-btn').style.display = 'none'; 
       }
 
