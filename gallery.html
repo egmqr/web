@@ -51,7 +51,18 @@
     
     .download-action { margin-top: 15px; height: 44px; padding: 0 25px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 10; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; flex-shrink: 0; }
     
-    .image-stage { position: absolute; top: calc(max(40px, env(safe-area-inset-top)) + 60px); bottom: calc(140px + env(safe-area-inset-bottom)); left: 0; right: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1; }
+    .image-stage { 
+  position: absolute; 
+  top: calc(max(40px, env(safe-area-inset-top)) + 60px); 
+  bottom: calc(190px + env(safe-area-inset-bottom)); /* Lifted to clear the bottom controls */
+  left: 0; 
+  right: 0; 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: center; 
+  align-items: center; 
+  z-index: 1; 
+}
     
     img.main { flex-shrink: 1; min-height: 0; max-width: 100%; transition: opacity 0.2s ease; opacity:0; object-fit: contain; pointer-events: auto; user-select: none; -webkit-user-drag: none; }
     
