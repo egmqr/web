@@ -13,13 +13,13 @@
   <style>
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #111; color: white; font-family: -apple-system, sans-serif; }
     .content-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
     .landing-page { padding: 20px; text-align: center; max-width: 800px; margin: 0 auto; }
     
     .header-container { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 25px; }
@@ -36,7 +36,6 @@
     .close-btn { background: transparent; color: #aaa; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #555; font-weight: bold; cursor: pointer; margin-top: 5px; }
 
     .thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 30px; }
-    /* NEW: content-visibility on grid items saves rendering power */
     .thumb-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid #333; background: #222; content-visibility: auto; contain-intrinsic-size: 100px; }
     
     .loader-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 60px; gap: 15px; width: 100%; }
@@ -49,26 +48,29 @@
     .lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: #000; z-index: 9999; display: none; flex-direction: column; align-items:center; justify-content:center; overflow:hidden; }
     .popout-close { position: absolute; top: max(40px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); } 
     
+    /* 🚨 NEW: Lightbox Share Button Styles */
+    .lightbox-share { position: absolute; top: max(40px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); }
+    
     .download-action { margin-top: 15px; height: 44px; padding: 0 25px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 10; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; flex-shrink: 0; }
     
     .image-stage { 
-  position: absolute; 
-  top: calc(max(40px, env(safe-area-inset-top)) + 60px); 
-  bottom: calc(190px + env(safe-area-inset-bottom)); /* Lifted to clear the bottom controls */
-  left: 0; 
-  right: 0; 
-  display: flex; 
-  flex-direction: column; 
-  justify-content: center; 
-  align-items: center; 
-  z-index: 1; 
-}
+      position: absolute; 
+      top: calc(max(40px, env(safe-area-inset-top)) + 60px); 
+      bottom: calc(190px + env(safe-area-inset-bottom)); /* Lifted to clear the bottom controls */
+      left: 0; 
+      right: 0; 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      z-index: 1; 
+    }
     
     img.main { flex-shrink: 1; min-height: 0; max-width: 100%; transition: opacity 0.2s ease; opacity:0; object-fit: contain; pointer-events: auto; user-select: none; -webkit-user-drag: none; }
     
     .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 10; color: #fff; cursor: pointer; } 
     .left { left: max(10px, env(safe-area-inset-left)); } .right { right: max(10px, env(safe-area-inset-right)); } 
-   .modal-bottom-controls { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 20; padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 60%, transparent 100%); }
+    .modal-bottom-controls { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 20; padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 60%, transparent 100%); }
     .filmstrip-wrapper { position: relative; width: 100%; overflow-x: auto; white-space: nowrap; -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent); padding: 10px calc(50% - 26px); scroll-snap-type: x mandatory; box-sizing: border-box; } 
     .filmstrip-wrapper::-webkit-scrollbar { display: none; } 
     .filmstrip-thumb { width: 45px; height: 45px; object-fit: cover; display: inline-block; margin: 0 4px; border-radius: 6px; opacity: 0.4; border: 2px solid transparent; transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); scroll-snap-align: center; background-color: #222; cursor: pointer; transform-origin: center center; } 
@@ -77,8 +79,8 @@
     .track-line { width: 100%; height: 4px; background: #444; border-radius: 2px; } 
     .scrubber-handle { width: 24px; height: 24px; background: #fff; border-radius: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 2px 8px rgba(0,0,0,0.6); pointer-events: none; } 
     .time-bubble { position: absolute; top: -30px; transform: translateX(-50%); background: #333; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
-/* 🚨 FIX: New styling for the relocated download button */
-.download-btn { display: none; background: rgba(255, 255, 255, 0.15); color: white; padding: 6px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); font-size: 13px; transition: background 0.2s; backdrop-filter: blur(5px); margin: 15px auto 5px auto; }
+    
+    .download-btn { display: none; background: rgba(255, 255, 255, 0.15); color: white; padding: 6px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); font-size: 13px; transition: background 0.2s; backdrop-filter: blur(5px); margin: 15px auto 5px auto; }
     .download-btn:active { background: rgba(255,255,255,0.3); }
     .hint-banner { 
       position: absolute; 
@@ -139,6 +141,10 @@
 
   <div id="lightbox" class="lightbox">
     <div class="popout-close" onclick="closeLightbox()">✕</div>
+
+    <div class="lightbox-share" onclick="openShareModal()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+    </div>
     
     <div class="nav-btn left" onclick="navigateInline(-1)">&#10094;</div>
     <div class="nav-btn right" onclick="navigateInline(1)">&#10095;</div>
@@ -182,8 +188,9 @@
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     var hintTimer = null;
-var activeHdLoader = null, fadeTimer = null;
+    var activeHdLoader = null, fadeTimer = null;
     var popoutImgTimer = null, lastPreviewFetch = 0;
+    
     function showHint(msg, persist = false) {
       const h = document.getElementById('hd-hint');
       if (!h) return;
@@ -197,7 +204,6 @@ var activeHdLoader = null, fadeTimer = null;
       }
     }
 
-    // NEW: Background preloader to make swiping instantly responsive
     function preloadNeighbors(index) {
       if (!window.filteredImages || window.filteredImages.length === 0) return;
       const preload = (idx) => {
@@ -230,9 +236,8 @@ var activeHdLoader = null, fadeTimer = null;
             document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
             return;
         }
-        // ✅ THE FIX: Attach the folderId to the API request!
         fetchUrl = `${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}&folderId=${FOLDER_ID}`;
-        document.querySelector('.share-btn').style.display = 'none'; 
+        // 🚨 FIX: Stopped hiding the share button on single photos!
       }
 
       if (isIOS) {
@@ -253,6 +258,7 @@ var activeHdLoader = null, fadeTimer = null;
       if (!isIOS) {
         document.getElementById('l-download-btn').style.display = 'block';
       }
+      
       fetch(fetchUrl)
         .then(response => response.json())
         .then(result => {
@@ -303,6 +309,9 @@ var activeHdLoader = null, fadeTimer = null;
     
     function openShareModal() {
       document.getElementById('shareModal').style.display = 'flex';
+      // 🚨 FIX: Ensure the modal sits above the lightbox!
+      document.getElementById('shareModal').style.zIndex = '100000';
+
       if (!qrGenerated) {
         new QRCode(document.getElementById("share-qr-code"), {
           text: window.location.href, 
@@ -396,7 +405,6 @@ var activeHdLoader = null, fadeTimer = null;
         }
       }
       
-      // 🚨 FIX: Instantly kill ALL previous ghost loading timers so images don't stack/glitch!
       clearTimeout(hdLoadTimer);
       clearTimeout(fadeTimer);
       clearTimeout(hintTimer);
@@ -420,13 +428,13 @@ var activeHdLoader = null, fadeTimer = null;
         preloadNeighbors(idx);
 
         imgEl.style.opacity = 0; 
-        const renderIndex = inlineIdx; // 🚨 FIX: Locks the render to this specific swipe frame!
+        const renderIndex = inlineIdx; 
         
         fadeTimer = setTimeout(() => { 
           
           imgEl.onload = () => {
             imgEl.onload = null; 
-            if (inlineIdx !== renderIndex) return; // If user swiped again, abort this render!
+            if (inlineIdx !== renderIndex) return; 
             imgEl.style.opacity = 1; 
             
             hdLoadTimer = setTimeout(() => {
@@ -462,7 +470,6 @@ var activeHdLoader = null, fadeTimer = null;
       } 
     }
 
-    // 🚨 NEW: The updated download function required for the button relocation
     async function triggerDownload() {
       const img = window.filteredImages[inlineIdx];
       if (!img) return;
