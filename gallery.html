@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -48,6 +48,7 @@
     .lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: #000; z-index: 9999; display: none; flex-direction: column; align-items:center; justify-content:center; overflow:hidden; }
     .popout-close { position: absolute; top: max(40px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); } 
     
+    /* 🚨 NEW: Lightbox Share Button Styles */
     .lightbox-share { position: absolute; top: max(40px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); width: 44px; height: 44px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 99999; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); }
     
     .download-action { margin-top: 15px; height: 44px; padding: 0 25px; background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; z-index: 10; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; flex-shrink: 0; }
@@ -55,7 +56,7 @@
     .image-stage { 
       position: absolute; 
       top: calc(max(40px, env(safe-area-inset-top)) + 60px); 
-      bottom: calc(190px + env(safe-area-inset-bottom)); 
+      bottom: calc(190px + env(safe-area-inset-bottom)); /* Lifted to clear the bottom controls */
       left: 0; 
       right: 0; 
       display: flex; 
@@ -169,13 +170,14 @@
   </div>
 
   <script>
+    
     const urlParams = new URLSearchParams(window.location.search);
     const SESSION_NUM = urlParams.get('session');
-    const PHOTO_ID = urlParams.get('photo') || urlParams.get('id'); // 🟢 THE FIX: Accepts 'id' as well
+    const PHOTO_ID = urlParams.get('photo');
     const FOLDER_ID = urlParams.get('folderId'); 
+    const DYNAMIC_BACKEND = urlParams.get('backend'); 
     
-    // Always use your primary unified backend URL
-    const GAS_WEB_APP_URL = urlParams.get('backend') || "https://script.google.com/macros/s/AKfycbwUzJHFrbKL-SWsfDig_Khh2dc-dRTmBIXXeAo7sMH9AhwTFy03B4OMJEuqI2BttJCC/exec"; 
+    const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/AKfycbwjQbyGEoK5HkmIOmVmGsYbYntYiA9Jg5YRuQAOpJ35m98BIN8EJtKC3lEAsmqVIFuQ/exec"; 
     
     window.filteredImages = [];
     var inlineIdx = 0;            
@@ -216,32 +218,26 @@
     }
 
     window.onload = function() {
-      // 🟢 THE MAGIC LINK: Listen for pre-loaded data from index.html
-      window.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'INIT_DATA') {
-          const images = event.data.images;
-          let targetIdx = 0;
-          if (PHOTO_ID) {
-            targetIdx = images.findIndex(img => img.id === PHOTO_ID || img.name.includes(PHOTO_ID));
-            if (targetIdx === -1) targetIdx = 0;
-          }
-          setupLandingPageFromObjects(images, targetIdx);
+      if (!SESSION_NUM && !PHOTO_ID) {
+        document.getElementById('loader').innerHTML = "<div class='loader-text'>No session or photo specified</div>";
+        document.querySelector('.share-btn').style.display = 'none';
+        return;
+      }
+
+      let fetchUrl = "";
+      if (SESSION_NUM) {
+        if (!FOLDER_ID) {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
+            return;
         }
-      });
-      
-      // Check if we were opened by the main gallery
-      if (window.opener) {
-        window.opener.postMessage({ type: 'VIEWER_READY' }, '*');
-        
-        // Failsafe: if index.html doesn't respond in 500ms, fetch manually
-        setTimeout(() => {
-          if (!window.filteredImages || window.filteredImages.length === 0) {
-            manualFetch();
-          }
-        }, 500);
-      } else {
-        // Opened directly via SMS/Email link
-        manualFetch();
+        fetchUrl = `${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}&folderId=${FOLDER_ID}`;
+      } else if (PHOTO_ID) {
+        if (!FOLDER_ID) {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
+            return;
+        }
+        fetchUrl = `${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}&folderId=${FOLDER_ID}`;
+        // 🚨 FIX: Stopped hiding the share button on single photos!
       }
 
       if (isIOS) {
@@ -263,48 +259,11 @@
         document.getElementById('l-download-btn').style.display = 'block';
       }
       
-      setupInlineTouch(); 
-    };
-
-    // 🟢 MANUAL FETCH ENGINE: Directly asks the backend for photos and parses the array
-    function manualFetch() {
-      if (!FOLDER_ID) {
-        document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
-        document.querySelector('.share-btn').style.display = 'none';
-        return;
-      }
-
-      const fetchUrl = `${GAS_WEB_APP_URL}?api=gallery&folderId=${FOLDER_ID}`;
-      
       fetch(fetchUrl)
         .then(response => response.json())
         .then(result => {
-          if (result.status === 'success' || result.data) {
-            let dataArr = result.data || [];
-            
-            // Map the raw arrays [id, name, url, time] into workable objects
-            let mappedPhotos = dataArr.map(item => {
-              const [id, name, rawUrl, rawTime] = item;
-              let displayTime = '';
-              if (rawTime > 0) {
-                const d = new Date(rawTime);
-                const ph = new Date(d.getTime() + (d.getTimezoneOffset() * 60000) + (8 * 3600000));
-                let h = ph.getHours(), m = ph.getMinutes().toString().padStart(2, '0');
-                displayTime = `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
-              }
-              let baseUrl = rawUrl.startsWith('data:') ? rawUrl : rawUrl.split('=')[0];
-              return { id: id, name: name, baseUrl: baseUrl, displayTime: displayTime };
-            });
-
-            // 🟢 Filter the list to only show the requested Session or Photo
-            let finalPhotos = mappedPhotos;
-            if (SESSION_NUM) {
-              finalPhotos = mappedPhotos.filter(p => p.name.toLowerCase().includes(SESSION_NUM.toLowerCase()));
-            } else if (PHOTO_ID) {
-              finalPhotos = mappedPhotos.filter(p => p.id === PHOTO_ID || p.name.toLowerCase().includes(PHOTO_ID.toLowerCase()));
-            }
-            
-            setupLandingPageFromObjects(finalPhotos, 0);
+          if (result.status === 'success') {
+            setupLandingPage(result.data);
           } else {
             document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + result.message + "</div>";
           }
@@ -313,32 +272,31 @@
           document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Failed to load photos</div>";
           console.error(err);
         });
-    }
 
-    function setupLandingPageFromObjects(photos, startIdx = 0) {
+      setupInlineTouch(); 
+    };
+
+    function setupLandingPage(photos) {
       document.getElementById('loader').style.display = 'none';
       if (!photos || photos.length === 0) {
         document.getElementById('thumb-grid').innerHTML = "<div class='loader-wrapper'><div class='loader-text'>No photos ready yet. Check back soon!</div></div>";
         return;
       }
 
-      window.filteredImages = photos;
+      window.filteredImages = photos.map(function(p) { return { baseUrl: p.baseUrl, displayTime: p.displayTime, downloadUrl: p.downloadUrl }; });
 
       var gridHtml = "";
       photos.forEach(function(p, index) { 
-        let thumbUrl = p.baseUrl.startsWith('data:') ? p.baseUrl : p.baseUrl + '=w250';
-        gridHtml += "<img src='" + thumbUrl + "' loading='lazy' decoding='async' onclick='openInlineCarousel(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>"; 
+        gridHtml += "<img src='" + p.previewUrl + "' loading='lazy' decoding='async' onclick='openInlineCarousel(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>"; 
       });
       document.getElementById('thumb-grid').innerHTML = gridHtml;
 
-      if ((PHOTO_ID || photos.length === 1) && !window.opener) {
+      if (PHOTO_ID && photos.length === 1) {
         setTimeout(() => {
-          openInlineCarousel(startIdx);
-          if (photos.length <= 1) {
-            document.getElementById('l-count').style.display = 'none';
-            document.getElementById('l-filmstripWrapper').style.display = 'none';
-            document.getElementById('l-track').style.display = 'none';
-          }
+          openInlineCarousel(0);
+          document.getElementById('l-count').style.display = 'none';
+          document.getElementById('l-filmstripWrapper').style.display = 'none';
+          document.getElementById('l-track').style.display = 'none';
         }, 50); 
       } else {
         document.getElementById('l-count').style.display = 'block';
@@ -351,6 +309,7 @@
     
     function openShareModal() {
       document.getElementById('shareModal').style.display = 'flex';
+      // 🚨 FIX: Ensure the modal sits above the lightbox!
       document.getElementById('shareModal').style.zIndex = '100000';
 
       if (!qrGenerated) {
