@@ -171,9 +171,10 @@
     const urlParams = new URLSearchParams(window.location.search);
     const SESSION_NUM = urlParams.get('session');
     const PHOTO_ID = urlParams.get('photo');
-    const PREFIX = urlParams.get('prefix') || urlParams.get('folderId'); // R2: use prefix param
-    
-    const API_BASE = "https://api.createdbyegm.com"; // R2 Worker
+    const PREFIX = urlParams.get('prefix') || urlParams.get('folderId'); // fallback for old QR links
+    const API_BASE = "https://api.createdbyegm.com";
+
+
     
     window.filteredImages = [];
     var inlineIdx = 0;            
@@ -206,7 +207,7 @@
         if (idx >= 0 && idx < window.filteredImages.length) {
           let preImg = new Image();
           let bUrl = window.filteredImages[idx].baseUrl;
-          preImg.src = bUrl.startsWith('data:') ? bUrl : bUrl + '=w1024';
+          preImg.src = bUrl.startsWith('data:') ? bUrl : bUrl;
         }
       };
       preload(index + 1);
@@ -233,7 +234,6 @@
             return;
         }
         fetchUrl = `${API_BASE}/api/photo?id=${PHOTO_ID}&prefix=${encodeURIComponent(PREFIX)}`;
-        // 🚨 FIX: Stopped hiding the share button on single photos!
       }
 
       if (isIOS) {
@@ -258,10 +258,14 @@
       fetch(fetchUrl)
         .then(response => response.json())
         .then(result => {
-          if (result.status === 'success') {
+          // R2 Worker returns { status: 'success', data: [...] } or { photos: [...] }
+          const photos = result.data || result.photos || result;
+          if (Array.isArray(photos) && photos.length >= 0) {
+            setupLandingPage(photos);
+          } else if (result.status === 'success') {
             setupLandingPage(result.data);
           } else {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + result.message + "</div>";
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + (result.message || 'Failed to load') + "</div>";
           }
         })
         .catch(err => {
@@ -279,16 +283,16 @@
         return;
       }
 
-      window.filteredImages = photos.map(function(p) { return { baseUrl: p.baseUrl, displayTime: p.displayTime, downloadUrl: p.downloadUrl }; });
+      // R2: API returns [key, name, cdnUrl, time] tuples or objects with baseUrl
+      window.filteredImages = photos.map(function(p) {
+        const cdnUrl = Array.isArray(p) ? p[2] : (p.baseUrl || p.url);
+        const name = Array.isArray(p) ? p[1] : (p.name || 'photo.jpg');
+        return { baseUrl: cdnUrl, displayTime: '', downloadUrl: cdnUrl, name };
+      });
 
       var gridHtml = "";
-      photos.forEach(function(p, index) { 
-        gridHtml += "<img src='" + p.previewUrl + "' loading='lazy' decoding='async' onclick='openInlineCarousel(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>"; 
-      });
-      document.getElementById('thumb-grid').innerHTML = gridHtml;
-
-      if (PHOTO_ID && photos.length === 1) {
-        setTimeout(() => {
+      window.filteredImages.forEach(function(p, index) {
+        gridHtml += "<img src='" + p.baseUrl + "' loading='lazy' decoding='async' onclick='openInlineCarousel(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>";
           openInlineCarousel(0);
           document.getElementById('l-count').style.display = 'none';
           document.getElementById('l-filmstripWrapper').style.display = 'none';
@@ -412,8 +416,8 @@
       imgEl.onload = null; 
       imgEl.onerror = null;
 
-      let w1024Url = imgData.baseUrl.startsWith('data:') ? imgData.baseUrl : imgData.baseUrl + '=w1024';
-      let hdUrl = imgData.baseUrl.startsWith('data:') ? imgData.baseUrl : imgData.baseUrl + '=s0';
+      let w1024Url = imgData.baseUrl; // R2: full-res CDN URL, no size param needed
+      let hdUrl = imgData.baseUrl; // R2: same full-res URL for HD
       let scrubUrl = imgData.baseUrl.startsWith('data:') ? imgData.baseUrl : imgData.baseUrl + '=w200';
 
       if (scrub) { 
@@ -473,7 +477,7 @@
       btn.innerText = "Downloading...";
       
       try { 
-        const res = await fetch(img.baseUrl + '=s0'); 
+        const res = await fetch(img.baseUrl); 
         const blob = await res.blob(); 
         const url = URL.createObjectURL(blob); 
         const a = document.createElement('a'); 
@@ -482,7 +486,7 @@
         a.click(); 
         URL.revokeObjectURL(url);
       } catch(e) { 
-        window.open(img.baseUrl + '=s0', '_blank'); 
+        window.open(img.baseUrl, '_blank'); 
       } finally { 
         btn.innerText = "⬇ Download"; 
       }
