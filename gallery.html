@@ -258,14 +258,13 @@
       fetch(fetchUrl)
         .then(response => response.json())
         .then(result => {
-          // R2 Worker returns { status: 'success', data: [...] } or { photos: [...] }
-          const photos = result.data || result.photos || result;
-          if (Array.isArray(photos) && photos.length >= 0) {
-            setupLandingPage(photos);
-          } else if (result.status === 'success') {
+          // R2 Worker returns { status: 'success', data: [...] }
+          if (result.status === 'success' && result.data) {
             setupLandingPage(result.data);
+          } else if (result.status === 'error') {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>" + (result.message || 'Failed to load') + "</div>";
           } else {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + (result.message || 'Failed to load') + "</div>";
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Unexpected response from server</div>";
           }
         })
         .catch(err => {
