@@ -276,28 +276,37 @@
     });
 
     function setupLandingPage(photos) {
+    function setupLandingPage(photos) {
       document.getElementById('loader').style.display = 'none';
       if (!photos || photos.length === 0) {
         document.getElementById('thumb-grid').innerHTML = "<div class='loader-wrapper'><div class='loader-text'>No photos ready yet. Check back soon!</div></div>";
         return;
       }
 
-      // R2: API returns [key, name, cdnUrl, time] tuples or objects with baseUrl
+      // Normalize: handle [key, name, cdnUrl, time] tuples OR {baseUrl} objects
       window.filteredImages = photos.map(function(p) {
         const cdnUrl = Array.isArray(p) ? p[2] : (p.baseUrl || p.url);
         const name = Array.isArray(p) ? p[1] : (p.name || 'photo.jpg');
-        return { baseUrl: cdnUrl, displayTime: '', downloadUrl: cdnUrl, name };
+        return { baseUrl: cdnUrl, displayTime: '', downloadUrl: cdnUrl, name: name };
       });
 
-      var gridHtml = "";
+      // Build grid — each thumb opens carousel on click
+      var gridHtml = '';
       window.filteredImages.forEach(function(p, index) {
         gridHtml += "<img src='" + p.baseUrl + "' loading='lazy' decoding='async' onclick='openInlineCarousel(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>";
+      });
+      document.getElementById('thumb-grid').innerHTML = gridHtml;
+
+      if (PHOTO_ID && photos.length === 1) {
+        // Single photo — auto-open in modal, hide filmstrip and count
+        setTimeout(function() {
           openInlineCarousel(0);
           document.getElementById('l-count').style.display = 'none';
           document.getElementById('l-filmstripWrapper').style.display = 'none';
           document.getElementById('l-track').style.display = 'none';
-        }, 50); 
+        }, 50);
       } else {
+        // Session / multiple photos — show grid, filmstrip visible when carousel opens
         document.getElementById('l-count').style.display = 'block';
         document.getElementById('l-filmstripWrapper').style.display = 'block';
         document.getElementById('l-track').style.display = 'flex';
