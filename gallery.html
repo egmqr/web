@@ -214,7 +214,7 @@
       preload(index - 1);
     }
 
-    window.onload = function() {
+    document.addEventListener('DOMContentLoaded', function() {
       if (!SESSION_NUM && !PHOTO_ID) {
         document.getElementById('loader').innerHTML = "<div class='loader-text'>No session or photo specified</div>";
         document.querySelector('.share-btn').style.display = 'none';
@@ -273,7 +273,7 @@
         });
 
       setupInlineTouch(); 
-    };
+    });
 
     function setupLandingPage(photos) {
       document.getElementById('loader').style.display = 'none';
