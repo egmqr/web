@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Client Gallery</title>
   
-  <link rel="preconnect" href="https://script.google.com" crossorigin>
-  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="preconnect" href="https://drive.google.com" crossorigin>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
@@ -174,10 +171,10 @@
     const urlParams = new URLSearchParams(window.location.search);
     const SESSION_NUM = urlParams.get('session');
     const PHOTO_ID = urlParams.get('photo');
-    const FOLDER_ID = urlParams.get('folderId'); 
-    const DYNAMIC_BACKEND = urlParams.get('backend'); 
-    
-    const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/AKfycbwjQbyGEoK5HkmIOmVmGsYbYntYiA9Jg5YRuQAOpJ35m98BIN8EJtKC3lEAsmqVIFuQ/exec"; 
+    const PREFIX = urlParams.get('prefix') || urlParams.get('folderId'); // fallback for old QR links
+    const API_BASE = "https://api.createdbyegm.com";
+
+
     
     window.filteredImages = [];
     var inlineIdx = 0;            
@@ -210,14 +207,14 @@
         if (idx >= 0 && idx < window.filteredImages.length) {
           let preImg = new Image();
           let bUrl = window.filteredImages[idx].baseUrl;
-          preImg.src = bUrl.startsWith('data:') ? bUrl : bUrl + '=w1024';
+          preImg.src = bUrl.startsWith('data:') ? bUrl : bUrl;
         }
       };
       preload(index + 1);
       preload(index - 1);
     }
 
-    window.onload = function() {
+    function init() {
       if (!SESSION_NUM && !PHOTO_ID) {
         document.getElementById('loader').innerHTML = "<div class='loader-text'>No session or photo specified</div>";
         document.querySelector('.share-btn').style.display = 'none';
@@ -226,18 +223,17 @@
 
       let fetchUrl = "";
       if (SESSION_NUM) {
-        if (!FOLDER_ID) {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
+        if (!PREFIX) {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing prefix in URL</div>";
             return;
         }
-        fetchUrl = `${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}&folderId=${FOLDER_ID}`;
+        fetchUrl = `${API_BASE}/api/session-gallery?session=${SESSION_NUM}&prefix=${encodeURIComponent(PREFIX)}`;
       } else if (PHOTO_ID) {
-        if (!FOLDER_ID) {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
+        if (!PREFIX) {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing prefix in URL</div>";
             return;
         }
-        fetchUrl = `${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}&folderId=${FOLDER_ID}`;
-        // 🚨 FIX: Stopped hiding the share button on single photos!
+        fetchUrl = `${API_BASE}/api/photo?id=${PHOTO_ID}&prefix=${encodeURIComponent(PREFIX)}`;
       }
 
       if (isIOS) {
@@ -262,10 +258,13 @@
       fetch(fetchUrl)
         .then(response => response.json())
         .then(result => {
-          if (result.status === 'success') {
+          // R2 Worker returns { status: 'success', data: [...] }
+          if (result.status === 'success' && result.data) {
             setupLandingPage(result.data);
+          } else if (result.status === 'error') {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>" + (result.message || 'Failed to load') + "</div>";
           } else {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: " + result.message + "</div>";
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Unexpected response from server</div>";
           }
         })
         .catch(err => {
@@ -274,7 +273,9 @@
         });
 
       setupInlineTouch(); 
-    };
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
 
     function setupLandingPage(photos) {
       document.getElementById('loader').style.display = 'none';
@@ -283,22 +284,30 @@
         return;
       }
 
-      window.filteredImages = photos.map(function(p) { return { baseUrl: p.baseUrl, displayTime: p.displayTime, downloadUrl: p.downloadUrl }; });
+      // Normalize: handle [key, name, cdnUrl, time] tuples OR {baseUrl} objects
+      window.filteredImages = photos.map(function(p) {
+        const cdnUrl = Array.isArray(p) ? p[2] : (p.baseUrl || p.url);
+        const name = Array.isArray(p) ? p[1] : (p.name || 'photo.jpg');
+        return { baseUrl: cdnUrl, displayTime: '', downloadUrl: cdnUrl, name: name };
+      });
 
-      var gridHtml = "";
-      photos.forEach(function(p, index) { 
-        gridHtml += "<img src='" + p.previewUrl + "' loading='lazy' decoding='async' onclick='openInlineCarousel(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>"; 
+      // Build grid — each thumb opens carousel on click
+      var gridHtml = '';
+      window.filteredImages.forEach(function(p, index) {
+        gridHtml += "<img src='" + p.baseUrl + "' loading='lazy' decoding='async' onclick='openInlineCarousel(" + index + ")' style='cursor:pointer; transition: opacity 0.2s;' onmouseover='this.style.opacity=0.8' onmouseout='this.style.opacity=1'>";
       });
       document.getElementById('thumb-grid').innerHTML = gridHtml;
 
       if (PHOTO_ID && photos.length === 1) {
-        setTimeout(() => {
+        // Single photo — auto-open in modal, hide filmstrip and count
+        setTimeout(function() {
           openInlineCarousel(0);
           document.getElementById('l-count').style.display = 'none';
           document.getElementById('l-filmstripWrapper').style.display = 'none';
           document.getElementById('l-track').style.display = 'none';
-        }, 50); 
+        }, 50);
       } else {
+        // Session / multiple photos — show grid, filmstrip visible when carousel opens
         document.getElementById('l-count').style.display = 'block';
         document.getElementById('l-filmstripWrapper').style.display = 'block';
         document.getElementById('l-track').style.display = 'flex';
@@ -368,7 +377,7 @@
       
       var stripHtml = '';
       window.filteredImages.forEach((f, i) => { 
-        var src = f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c';
+        var src = f.baseUrl; // R2: CDN URL used directly, no size params needed
         stripHtml += '<img id="lt-'+i+'" class="filmstrip-thumb ' + (i === idx ? 'active' : '') + '" src="'+src+'" loading="lazy" decoding="async" onclick="navigateInlineTo('+i+')">'; 
       });
       document.getElementById('l-filmstripWrapper').innerHTML = stripHtml;
@@ -416,8 +425,8 @@
       imgEl.onload = null; 
       imgEl.onerror = null;
 
-      let w1024Url = imgData.baseUrl.startsWith('data:') ? imgData.baseUrl : imgData.baseUrl + '=w1024';
-      let hdUrl = imgData.baseUrl.startsWith('data:') ? imgData.baseUrl : imgData.baseUrl + '=s0';
+      let w1024Url = imgData.baseUrl; // R2: full-res CDN URL, no size param needed
+      let hdUrl = imgData.baseUrl; // R2: same full-res URL for HD
       let scrubUrl = imgData.baseUrl.startsWith('data:') ? imgData.baseUrl : imgData.baseUrl + '=w200';
 
       if (scrub) { 
@@ -477,7 +486,7 @@
       btn.innerText = "Downloading...";
       
       try { 
-        const res = await fetch(img.baseUrl + '=s0'); 
+        const res = await fetch(img.baseUrl); 
         const blob = await res.blob(); 
         const url = URL.createObjectURL(blob); 
         const a = document.createElement('a'); 
@@ -486,7 +495,7 @@
         a.click(); 
         URL.revokeObjectURL(url);
       } catch(e) { 
-        window.open(img.baseUrl + '=s0', '_blank'); 
+        window.open(img.baseUrl, '_blank'); 
       } finally { 
         btn.innerText = "⬇ Download"; 
       }
