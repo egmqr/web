@@ -377,7 +377,7 @@
       
       var stripHtml = '';
       window.filteredImages.forEach((f, i) => { 
-        var src = f.baseUrl.startsWith('data:') ? f.baseUrl : f.baseUrl + '=s50-c';
+        var src = f.baseUrl; // R2: CDN URL used directly, no size params needed
         stripHtml += '<img id="lt-'+i+'" class="filmstrip-thumb ' + (i === idx ? 'active' : '') + '" src="'+src+'" loading="lazy" decoding="async" onclick="navigateInlineTo('+i+')">'; 
       });
       document.getElementById('l-filmstripWrapper').innerHTML = stripHtml;
