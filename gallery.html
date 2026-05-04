@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Client Gallery</title>
   
-  <link rel="preconnect" href="https://script.google.com" crossorigin>
-  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="preconnect" href="https://drive.google.com" crossorigin>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
@@ -174,10 +171,9 @@
     const urlParams = new URLSearchParams(window.location.search);
     const SESSION_NUM = urlParams.get('session');
     const PHOTO_ID = urlParams.get('photo');
-    const FOLDER_ID = urlParams.get('folderId'); 
-    const DYNAMIC_BACKEND = urlParams.get('backend'); 
+    const PREFIX = urlParams.get('prefix') || urlParams.get('folderId'); // R2: use prefix param
     
-    const GAS_WEB_APP_URL = DYNAMIC_BACKEND ? DYNAMIC_BACKEND : "https://script.google.com/macros/s/AKfycbwjQbyGEoK5HkmIOmVmGsYbYntYiA9Jg5YRuQAOpJ35m98BIN8EJtKC3lEAsmqVIFuQ/exec"; 
+    const API_BASE = "https://api.createdbyegm.com"; // R2 Worker
     
     window.filteredImages = [];
     var inlineIdx = 0;            
@@ -226,17 +222,17 @@
 
       let fetchUrl = "";
       if (SESSION_NUM) {
-        if (!FOLDER_ID) {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
+        if (!PREFIX) {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing prefix in URL</div>";
             return;
         }
-        fetchUrl = `${GAS_WEB_APP_URL}?api=gallery&session=${SESSION_NUM}&folderId=${FOLDER_ID}`;
+        fetchUrl = `${API_BASE}/api/session-gallery?session=${SESSION_NUM}&prefix=${encodeURIComponent(PREFIX)}`;
       } else if (PHOTO_ID) {
-        if (!FOLDER_ID) {
-            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing folderId in URL</div>";
+        if (!PREFIX) {
+            document.getElementById('loader').innerHTML = "<div class='loader-text' style='color:#ea4335;'>Error: Missing prefix in URL</div>";
             return;
         }
-        fetchUrl = `${GAS_WEB_APP_URL}?api=photo&id=${PHOTO_ID}&folderId=${FOLDER_ID}`;
+        fetchUrl = `${API_BASE}/api/photo?id=${PHOTO_ID}&prefix=${encodeURIComponent(PREFIX)}`;
         // 🚨 FIX: Stopped hiding the share button on single photos!
       }
 
